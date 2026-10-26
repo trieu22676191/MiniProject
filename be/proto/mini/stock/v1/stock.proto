@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package mini.stock.v1;
+
+option go_package = "github.com/trieu22676191/MiniProject/be/gen/go/mini/stock/v1;stockv1";
+
+service StockService {
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+  rpc GetItems(GetItemsRequest) returns (GetItemsResponse);
+}
+
+message Money {
+  string amount = 1;
+  string currency_code = 2;
+}
+
+message StockItem {
+  string sku = 1;
+  string name = 2;
+  Money unit_price = 3;
+  int64 on_hand = 4;
+  int64 reserved = 5;
+  int64 available = 6;
+}
+
+message ListItemsRequest {}
+
+message ListItemsResponse {
+  repeated StockItem items = 1;
+}
+
+message GetItemsRequest {
+  repeated string skus = 1;
+}
+
+message GetItemsResponse {
+  repeated StockItem items = 1;
+}

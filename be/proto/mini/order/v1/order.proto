@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package mini.order.v1;
+
+option go_package = "github.com/trieu22676191/MiniProject/be/gen/go/mini/order/v1;orderv1";
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc ApproveOrder(ApproveOrderRequest) returns (ApproveOrderResponse);
+  rpc RejectOrder(RejectOrderRequest) returns (RejectOrderResponse);
+}
+
+message Money {
+  string amount = 1;
+  string currency_code = 2;
+}
+
+message OrderLineInput {
+  string sku = 1;
+  int64 quantity = 2;
+}
+
+message OrderLine {
+  string sku = 1;
+  int64 quantity = 2;
+  Money unit_price = 3;
+  Money line_amount = 4;
+}
+
+message Order {
+  string id = 1;
+  string code = 2;
+  string status = 3;
+  string created_by = 4;
+  string decided_by = 5;
+  string reject_reason = 6;
+  Money total_amount = 7;
+  repeated OrderLine lines = 8;
+  repeated string allowed_actions = 9;
+}
+
+message CreateOrderRequest {
+  repeated OrderLineInput lines = 1;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message ListOrdersRequest {}
+
+message ApproveOrderRequest {
+  string id = 1;
+}
+
+message RejectOrderRequest {
+  string id = 1;
+  string reason = 2;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+message ApproveOrderResponse {
+  Order order = 1;
+}
+
+message RejectOrderResponse {
+  Order order = 1;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+}

@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema:
+      - sqlc_schema.sql
+      - migrations
+    queries: queries
+    gen:
+      go:
+        package: stocksql
+        out: internal/adapter/repo/sqlc
+        sql_package: pgx/v5

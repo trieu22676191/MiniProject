@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:18.1
+    environment:
+      POSTGRES_DB: mini
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      MINI_OWNER_PASSWORD: ${MINI_OWNER_PASSWORD:?Set MINI_OWNER_PASSWORD in .env}
+      MINI_APP_PASSWORD: ${MINI_APP_PASSWORD:?Set MINI_APP_PASSWORD in .env}
+      MINI_RELAY_PASSWORD: ${MINI_RELAY_PASSWORD:?Set MINI_RELAY_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mini"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.15.1-alpine3.22
+    command: ["-js", "-sd", "/data"]
+    ports:
+      - "127.0.0.1:4222:4222"
+    volumes:
+      - natsdata:/data
+volumes:
+  pgdata:
+  natsdata:
