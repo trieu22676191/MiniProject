@@ -54,3 +54,26 @@ func TestAllowedActions_AC02_OnlyDifferentApproverSeesActions(t *testing.T) {
 		t.Fatalf("approver actions = %v, want APPROVE and REJECT", got)
 	}
 }
+
+func TestCancel_EX01_OnlyAuthorizedUsersCanCancelReservedOrder(t *testing.T) {
+	owner := Order{Status: StatusReserved, CreatedBy: "an"}
+	if err := owner.Cancel("an", false); err != nil || owner.Status != StatusCancelled {
+		t.Fatalf("owner cancellation: status=%s err=%v", owner.Status, err)
+	}
+
+	forbidden := Order{Status: StatusReserved, CreatedBy: "an"}
+	if err := forbidden.Cancel("dung", false); err != ErrCancelForbidden {
+		t.Fatalf("other user's cancellation error = %v, want %v", err, ErrCancelForbidden)
+	}
+	if forbidden.Status != StatusReserved {
+		t.Fatalf("forbidden cancellation changed status to %s", forbidden.Status)
+	}
+
+	pending := Order{Status: StatusPendingApproval, CreatedBy: "an"}
+	if err := pending.Cancel("an", false); err != ErrInvalidTransition {
+		t.Fatalf("pending cancellation error = %v, want %v", err, ErrInvalidTransition)
+	}
+	if got := (Order{Status: StatusReserved, CreatedBy: "an"}).AllowedActions("an", false); len(got) != 1 || got[0] != "CANCEL" {
+		t.Fatalf("owner actions = %v, want CANCEL", got)
+	}
+}

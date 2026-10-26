@@ -36,6 +36,11 @@ UPDATE mini_order.orders
 SET status = $2, decided_by = $3, reject_reason = $4, updated_at = now()
 WHERE id = $1;
 
+-- name: SetOrderStatus :exec
+UPDATE mini_order.orders
+SET status = $2, updated_at = now()
+WHERE id = $1;
+
 -- name: InsertOrderOutbox :exec
 INSERT INTO mini_order.outbox (id, tenant_id, type, payload)
 VALUES ($1, $2, $3, $4::jsonb);

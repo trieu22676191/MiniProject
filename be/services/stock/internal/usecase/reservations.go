@@ -10,6 +10,17 @@ import (
 
 type ReservationRepository interface {
 	ReserveOrder(context.Context, uuid.UUID, string, []domain.ReservationLine) (domain.ReservationResult, error)
+	CancelOrder(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (u *Reservations) ProcessOrderCancelled(ctx context.Context, eventID, orderID uuid.UUID) error {
+	if _, err := tenant.FromContext(ctx); err != nil {
+		return err
+	}
+	if eventID == uuid.Nil || orderID == uuid.Nil {
+		return domain.ErrInvalidReservationEvent
+	}
+	return u.repo.CancelOrder(ctx, eventID, orderID)
 }
 
 type Reservations struct {

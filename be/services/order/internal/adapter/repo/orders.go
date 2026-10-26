@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trieu22676191/MiniProject/be/pkg/db"
+	"github.com/trieu22676191/MiniProject/be/pkg/events"
 	"github.com/trieu22676191/MiniProject/be/pkg/money"
 	"github.com/trieu22676191/MiniProject/be/pkg/tenant"
 	ordersql "github.com/trieu22676191/MiniProject/be/services/order/internal/adapter/repo/sqlc"
@@ -162,6 +163,44 @@ func (r *Orders) RejectOrder(ctx context.Context, id uuid.UUID, actor, reason st
 	return r.GetOrder(ctx, id)
 }
 
+func (r *Orders) CancelOrder(ctx context.Context, id uuid.UUID, actor string, canApprove bool) (domain.Order, error) {
+	identity, err := tenant.FromContext(ctx)
+	if err != nil {
+		return domain.Order{}, err
+	}
+	var result domain.Order
+	err = r.db.InTx(ctx, func(tx pgx.Tx) error {
+		queries := ordersql.New(tx)
+		row, err := queries.LockOrder(ctx, pgUUID(id))
+		if err != nil {
+			return fmt.Errorf("lock order for cancellation: %w", err)
+		}
+		order, err := mapOrder(row.ID, row.Code, row.Status, row.CreatedBy, row.DecidedBy, row.RejectReason, row.TotalAmount, row.CurrencyCode)
+		if err != nil {
+			return err
+		}
+		if err := order.Cancel(actor, canApprove); err != nil {
+			return err
+		}
+		if err := queries.SetOrderStatus(ctx, ordersql.SetOrderStatusParams{ID: pgUUID(id), Status: order.Status}); err != nil {
+			return fmt.Errorf("cancel order: %w", err)
+		}
+		result, err = getOrder(ctx, queries, id)
+		if err != nil {
+			return err
+		}
+		eventID, payload, err := cancelledEvent(identity.TenantID, id)
+		if err != nil {
+			return err
+		}
+		return queries.InsertOrderOutbox(ctx, ordersql.InsertOrderOutboxParams{
+			ID: pgUUID(eventID), TenantID: pgUUID(identity.TenantID),
+			Type: "mini.ord.order.cancelled", Column4: payload,
+		})
+	})
+	return result, err
+}
+
 func (r *Orders) ProcessReservationResult(ctx context.Context, eventID, orderID uuid.UUID, state string) error {
 	identity, err := tenant.FromContext(ctx)
 	if err != nil {
@@ -268,6 +307,27 @@ func approvedEvent(tenantID uuid.UUID, order domain.Order) (uuid.UUID, []byte, e
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return uuid.Nil, nil, fmt.Errorf("marshal approved event: %w", err)
+	}
+	return eventID, payload, nil
+}
+
+func cancelledEvent(tenantID, orderID uuid.UUID) (uuid.UUID, []byte, error) {
+	eventID, err := uuid.NewV7()
+	if err != nil {
+		return uuid.Nil, nil, fmt.Errorf("generate cancellation event ID: %w", err)
+	}
+	data, err := json.Marshal(events.OrderCancelled{OrderID: orderID.String()})
+	if err != nil {
+		return uuid.Nil, nil, fmt.Errorf("marshal cancellation event data: %w", err)
+	}
+	envelope := events.Envelope{
+		ID: eventID, Type: "mini.ord.order.cancelled", Source: "order", TenantID: tenantID,
+		CorrelationID: orderID.String(), OccurredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		SchemaVersion: 1, Data: data,
+	}
+	payload, err := json.Marshal(envelope)
+	if err != nil {
+		return uuid.Nil, nil, fmt.Errorf("marshal cancellation event envelope: %w", err)
 	}
 	return eventID, payload, nil
 }

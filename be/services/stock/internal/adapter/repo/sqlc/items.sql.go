@@ -27,6 +27,27 @@ func (q *Queries) AdjustStockOnHand(ctx context.Context, arg AdjustStockOnHandPa
 	return err
 }
 
+const decreaseReserved = `-- name: DecreaseReserved :execrows
+UPDATE mini_stock.stock_items
+SET reserved = reserved - $1
+WHERE tenant_id = $2 AND sku = $3
+  AND reserved >= $1
+`
+
+type DecreaseReservedParams struct {
+	Quantity int64
+	TenantID pgtype.UUID
+	Sku      string
+}
+
+func (q *Queries) DecreaseReserved(ctx context.Context, arg DecreaseReservedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, decreaseReserved, arg.Quantity, arg.TenantID, arg.Sku)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getStockItems = `-- name: GetStockItems :many
 SELECT sku, name, unit_price::text AS unit_price, currency_code,
        on_hand, reserved
@@ -168,6 +189,43 @@ func (q *Queries) InsertStockOutbox(ctx context.Context, arg InsertStockOutboxPa
 	return err
 }
 
+const listReservationLines = `-- name: ListReservationLines :many
+SELECT sku, quantity
+FROM mini_stock.reservation_lines
+WHERE tenant_id = $1 AND reservation_id = $2
+ORDER BY sku
+`
+
+type ListReservationLinesParams struct {
+	TenantID      pgtype.UUID
+	ReservationID pgtype.UUID
+}
+
+type ListReservationLinesRow struct {
+	Sku      string
+	Quantity int64
+}
+
+func (q *Queries) ListReservationLines(ctx context.Context, arg ListReservationLinesParams) ([]ListReservationLinesRow, error) {
+	rows, err := q.db.Query(ctx, listReservationLines, arg.TenantID, arg.ReservationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListReservationLinesRow
+	for rows.Next() {
+		var i ListReservationLinesRow
+		if err := rows.Scan(&i.Sku, &i.Quantity); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStockItems = `-- name: ListStockItems :many
 SELECT sku, name, unit_price::text AS unit_price, currency_code,
        on_hand, reserved
@@ -209,6 +267,25 @@ func (q *Queries) ListStockItems(ctx context.Context) ([]ListStockItemsRow, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockHeldReservation = `-- name: LockHeldReservation :one
+SELECT id
+FROM mini_stock.reservations
+WHERE tenant_id = $1 AND order_id = $2 AND status = 'HELD'
+FOR UPDATE
+`
+
+type LockHeldReservationParams struct {
+	TenantID pgtype.UUID
+	OrderID  pgtype.UUID
+}
+
+func (q *Queries) LockHeldReservation(ctx context.Context, arg LockHeldReservationParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockHeldReservation, arg.TenantID, arg.OrderID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const lockStockForAdjustment = `-- name: LockStockForAdjustment :one
@@ -263,4 +340,20 @@ func (q *Queries) LockStockForReservation(ctx context.Context, skus []string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const markReservationReleased = `-- name: MarkReservationReleased :exec
+UPDATE mini_stock.reservations
+SET status = 'RELEASED'
+WHERE tenant_id = $1 AND id = $2 AND status = 'HELD'
+`
+
+type MarkReservationReleasedParams struct {
+	TenantID      pgtype.UUID
+	ReservationID pgtype.UUID
+}
+
+func (q *Queries) MarkReservationReleased(ctx context.Context, arg MarkReservationReleasedParams) error {
+	_, err := q.db.Exec(ctx, markReservationReleased, arg.TenantID, arg.ReservationID)
+	return err
 }

@@ -35,6 +35,7 @@ func NewServer(orders orderv1.OrderServiceClient, stock stockv1.StockServiceClie
 	mux.HandleFunc("GET /api/orders/{id}", server.getOrder)
 	mux.HandleFunc("POST /api/orders/{id}/approve", server.approveOrder)
 	mux.HandleFunc("POST /api/orders/{id}/reject", server.rejectOrder)
+	mux.HandleFunc("POST /api/orders/{id}/cancel", server.cancelOrder)
 	mux.HandleFunc("GET /api/stock-items", server.listStockItems)
 	return server.requireDevUser(mux)
 }
@@ -138,6 +139,17 @@ func (s *Server) rejectOrder(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.rpcContext(r)
 	defer cancel()
 	response, err := s.orders.RejectOrder(ctx, &orderv1.RejectOrderRequest{Id: r.PathValue("id"), Reason: request.Reason})
+	if err != nil {
+		s.writeRPCError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"order": mapOrder(response.GetOrder())})
+}
+
+func (s *Server) cancelOrder(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.rpcContext(r)
+	defer cancel()
+	response, err := s.orders.CancelOrder(ctx, &orderv1.CancelOrderRequest{Id: r.PathValue("id")})
 	if err != nil {
 		s.writeRPCError(w, err)
 		return

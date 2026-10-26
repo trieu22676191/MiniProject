@@ -89,6 +89,51 @@ func TestReservation_AC07_DuplicateApprovedEventReservesOnce(t *testing.T) {
 	}
 }
 
+func TestReservation_EX01_CancellationReleasesStockOnce(t *testing.T) {
+	database, ctx := reservationTestDatabase(t)
+	sku, secondSKU := uniqueReservationSKU(t, "EX01A"), uniqueReservationSKU(t, "EX01B")
+	insertReservationStock(t, database, ctx, sku, 5)
+	insertReservationStock(t, database, ctx, secondSKU, 4)
+	orderID := uuid.Must(uuid.NewV7())
+	if err := reservationHandler(database).Handle(ctx, approvedEvent(t, orderID, map[string]int64{sku: 3, secondSKU: 2})); err != nil {
+		t.Fatal(err)
+	}
+	if got := readReserved(t, database, ctx, sku); got != 3 {
+		t.Fatalf("reserved before cancellation = %d, want 3", got)
+	}
+	if got := readReserved(t, database, ctx, secondSKU); got != 2 {
+		t.Fatalf("second SKU reserved before cancellation = %d, want 2", got)
+	}
+
+	payload := cancelledEvent(t, orderID)
+	repository := NewReservations(db.New(database))
+	cancelHandler := consumer.NewOrderCancelled(usecase.NewReservations(repository))
+	if err := cancelHandler.Handle(ctx, payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := cancelHandler.Handle(ctx, payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := cancelHandler.Handle(ctx, cancelledEvent(t, orderID)); err != nil {
+		t.Fatal(err)
+	}
+	for _, stockSKU := range []string{sku, secondSKU} {
+		if got := readReserved(t, database, ctx, stockSKU); got != 0 {
+			t.Fatalf("reserved for %s after duplicate cancellation = %d, want 0", stockSKU, got)
+		}
+	}
+	var reservationStatus string
+	if err := db.New(database).InTx(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT status FROM mini_stock.reservations
+			WHERE tenant_id = $1 AND order_id = $2`, reservationTenant, orderID).Scan(&reservationStatus)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if reservationStatus != "RELEASED" {
+		t.Fatalf("reservation status = %s, want RELEASED", reservationStatus)
+	}
+}
+
 func TestReservation_AC08_ConcurrentOrdersCannotOversell(t *testing.T) {
 	database, ctx := reservationTestDatabase(t)
 	const rounds = 20
@@ -271,6 +316,24 @@ func approvedEvent(t *testing.T, orderID uuid.UUID, lines map[string]int64) []by
 		ID: eventID, Type: "mini.ord.order.approved", Source: "order",
 		TenantID: reservationTenant, CorrelationID: orderID.String(),
 		OccurredAt: time.Now().UTC().Format(time.RFC3339Nano), SchemaVersion: 1, Data: encodedData,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return payload
+}
+
+func cancelledEvent(t *testing.T, orderID uuid.UUID) []byte {
+	t.Helper()
+	eventID := uuid.Must(uuid.NewV7())
+	data, err := json.Marshal(events.OrderCancelled{OrderID: orderID.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(events.Envelope{
+		ID: eventID, Type: "mini.ord.order.cancelled", Source: "order",
+		TenantID: reservationTenant, CorrelationID: orderID.String(),
+		OccurredAt: time.Now().UTC().Format(time.RFC3339Nano), SchemaVersion: 1, Data: data,
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -10,6 +10,7 @@ service OrderService {
   rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
   rpc ApproveOrder(ApproveOrderRequest) returns (ApproveOrderResponse);
   rpc RejectOrder(RejectOrderRequest) returns (RejectOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
 }
 
 message Money {
@@ -60,6 +61,10 @@ message RejectOrderRequest {
   string reason = 2;
 }
 
+message CancelOrderRequest {
+  string id = 1;
+}
+
 message CreateOrderResponse {
   Order order = 1;
 }
@@ -73,6 +78,10 @@ message ApproveOrderResponse {
 }
 
 message RejectOrderResponse {
+  Order order = 1;
+}
+
+message CancelOrderResponse {
   Order order = 1;
 }
 

@@ -95,6 +95,21 @@ func TestBFF_EmptyAllowedActionsSerializesAsArray(t *testing.T) {
 	}
 }
 
+func TestBFF_CancelOrderForwardsIdentity(t *testing.T) {
+	orders := &fakeOrderClient{}
+	handler := newTestHandler(orders)
+	request := httptest.NewRequest(http.MethodPost, "/api/orders/order-id/cancel", nil)
+	request.Header.Set("X-Dev-User", "an")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", response.Code, response.Body.String())
+	}
+	if orders.metadata.Get("x-user-id")[0] != "an" {
+		t.Fatalf("cancellation identity not forwarded: %v", orders.metadata)
+	}
+}
+
 func newTestHandler(orders *fakeOrderClient) http.Handler {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return NewServer(orders, &fakeStockClient{}, logger)
@@ -142,6 +157,11 @@ func (f *fakeOrderClient) ApproveOrder(ctx context.Context, _ *orderv1.ApproveOr
 func (f *fakeOrderClient) RejectOrder(ctx context.Context, _ *orderv1.RejectOrderRequest, _ ...grpc.CallOption) (*orderv1.RejectOrderResponse, error) {
 	f.metadata, _ = metadata.FromOutgoingContext(ctx)
 	return &orderv1.RejectOrderResponse{Order: sampleOrder()}, nil
+}
+
+func (f *fakeOrderClient) CancelOrder(ctx context.Context, _ *orderv1.CancelOrderRequest, _ ...grpc.CallOption) (*orderv1.CancelOrderResponse, error) {
+	f.metadata, _ = metadata.FromOutgoingContext(ctx)
+	return &orderv1.CancelOrderResponse{Order: sampleOrder()}, nil
 }
 
 type fakeStockClient struct{}

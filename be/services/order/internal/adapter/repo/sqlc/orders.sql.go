@@ -298,6 +298,22 @@ func (q *Queries) NextOrderCode(ctx context.Context) (int64, error) {
 	return code_number, err
 }
 
+const setOrderStatus = `-- name: SetOrderStatus :exec
+UPDATE mini_order.orders
+SET status = $2, updated_at = now()
+WHERE id = $1
+`
+
+type SetOrderStatusParams struct {
+	ID     pgtype.UUID
+	Status string
+}
+
+func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) error {
+	_, err := q.db.Exec(ctx, setOrderStatus, arg.ID, arg.Status)
+	return err
+}
+
 const updateOrderDecision = `-- name: UpdateOrderDecision :exec
 UPDATE mini_order.orders
 SET status = $2, decided_by = $3, reject_reason = $4, updated_at = now()

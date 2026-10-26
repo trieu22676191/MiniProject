@@ -17,6 +17,7 @@ type Repository interface {
 	CreateOrder(context.Context, domain.Order) (domain.Order, error)
 	ApproveOrder(context.Context, uuid.UUID, string) (domain.Order, error)
 	RejectOrder(context.Context, uuid.UUID, string, string) (domain.Order, error)
+	CancelOrder(context.Context, uuid.UUID, string, bool) (domain.Order, error)
 	ProcessReservationResult(context.Context, uuid.UUID, uuid.UUID, string) error
 }
 
@@ -121,6 +122,22 @@ func (u *Orders) RejectOrder(ctx context.Context, id uuid.UUID, reason string) (
 		return domain.Order{}, nil, err
 	}
 	return order, order.AllowedActions(identity.UserID, true), nil
+}
+
+func (u *Orders) CancelOrder(ctx context.Context, id uuid.UUID) (domain.Order, []string, error) {
+	identity, err := tenant.FromContext(ctx)
+	if err != nil {
+		return domain.Order{}, nil, err
+	}
+	canApprove := identity.Has("order.approve")
+	if !canApprove && !identity.Has("order.create") {
+		return domain.Order{}, nil, ErrForbidden
+	}
+	order, err := u.repo.CancelOrder(ctx, id, identity.UserID, canApprove)
+	if err != nil {
+		return domain.Order{}, nil, err
+	}
+	return order, order.AllowedActions(identity.UserID, canApprove), nil
 }
 
 func (u *Orders) ProcessReservationResult(ctx context.Context, eventID, orderID uuid.UUID, status string) error {

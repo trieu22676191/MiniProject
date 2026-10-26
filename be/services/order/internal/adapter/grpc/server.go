@@ -90,6 +90,18 @@ func (s *Server) RejectOrder(ctx context.Context, request *orderv1.RejectOrderRe
 	return &orderv1.RejectOrderResponse{Order: toProto(order, actions)}, nil
 }
 
+func (s *Server) CancelOrder(ctx context.Context, request *orderv1.CancelOrderRequest) (*orderv1.CancelOrderResponse, error) {
+	id, err := uuid.Parse(request.GetId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid order id")
+	}
+	order, actions, err := s.orders.CancelOrder(ctx, id)
+	if err != nil {
+		return nil, toStatus(err)
+	}
+	return &orderv1.CancelOrderResponse{Order: toProto(order, actions)}, nil
+}
+
 func toStatus(err error) error {
 	code, reason, message := codes.Internal, "INTERNAL", "could not process order"
 	switch {
@@ -99,6 +111,8 @@ func toStatus(err error) error {
 		code, reason, message = codes.PermissionDenied, "PERMISSION_DENIED", "permission denied"
 	case errors.Is(err, domain.ErrSelfApproval):
 		code, reason, message = codes.PermissionDenied, "SELF_APPROVAL", "you cannot decide your own order"
+	case errors.Is(err, domain.ErrCancelForbidden):
+		code, reason, message = codes.PermissionDenied, "CANCELLATION_FORBIDDEN", "you cannot cancel this order"
 	case errors.Is(err, domain.ErrInvalidTransition):
 		code, reason, message = codes.FailedPrecondition, "INVALID_TRANSITION", "order state does not allow this action"
 	case errors.Is(err, domain.ErrInvalidOrder):

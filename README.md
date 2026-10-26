@@ -71,7 +71,7 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. REST BFF và bốn màn frontend đã được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy integration test với cache bị tắt, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`, `CancelOrder`; hủy đơn đã giữ hàng phát event bù trừ qua outbox, `stock` nhả reservation một lần qua JetStream. `stock.AdjustStock` cho caller có capability `stock.adjust` điều chỉnh tồn nhưng không thấp hơn `reserved`. Cần chạy cả hai service để hoàn tất luồng sự kiện. REST BFF có route `POST /api/orders/{id}/cancel`; giao diện hủy đơn và route BFF điều chỉnh tồn chưa được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
 
 ## Demo luồng đơn hàng
 

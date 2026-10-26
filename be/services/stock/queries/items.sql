@@ -47,6 +47,29 @@ VALUES ($1, $2, $3, 'HELD');
 INSERT INTO mini_stock.reservation_lines (tenant_id, reservation_id, sku, quantity)
 VALUES ($1, $2, $3, $4);
 
+-- name: LockHeldReservation :one
+SELECT id
+FROM mini_stock.reservations
+WHERE tenant_id = sqlc.arg(tenant_id) AND order_id = sqlc.arg(order_id) AND status = 'HELD'
+FOR UPDATE;
+
+-- name: ListReservationLines :many
+SELECT sku, quantity
+FROM mini_stock.reservation_lines
+WHERE tenant_id = sqlc.arg(tenant_id) AND reservation_id = sqlc.arg(reservation_id)
+ORDER BY sku;
+
+-- name: DecreaseReserved :execrows
+UPDATE mini_stock.stock_items
+SET reserved = reserved - sqlc.arg(quantity)
+WHERE tenant_id = sqlc.arg(tenant_id) AND sku = sqlc.arg(sku)
+  AND reserved >= sqlc.arg(quantity);
+
+-- name: MarkReservationReleased :exec
+UPDATE mini_stock.reservations
+SET status = 'RELEASED'
+WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(reservation_id) AND status = 'HELD';
+
 -- name: InsertStockOutbox :exec
 INSERT INTO mini_stock.outbox (id, tenant_id, type, payload)
 VALUES ($1, $2, $3, $4::jsonb);

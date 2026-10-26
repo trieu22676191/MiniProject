@@ -12,12 +12,14 @@ const (
 	StatusReserved        = "RESERVED"
 	StatusOutOfStock      = "OUT_OF_STOCK"
 	StatusRejected        = "REJECTED"
+	StatusCancelled       = "CANCELLED"
 )
 
 var (
 	ErrInvalidOrder      = errors.New("invalid order")
 	ErrInvalidTransition = errors.New("invalid order state transition")
 	ErrSelfApproval      = errors.New("order creator cannot approve their own order")
+	ErrCancelForbidden   = errors.New("order cancellation denied")
 )
 
 type LineInput struct {
@@ -114,7 +116,21 @@ func (o *Order) Reject(actor, reason string) error {
 	return nil
 }
 
+func (o *Order) Cancel(actor string, canApprove bool) error {
+	if o.Status != StatusReserved {
+		return ErrInvalidTransition
+	}
+	if actor != o.CreatedBy && !canApprove {
+		return ErrCancelForbidden
+	}
+	o.Status = StatusCancelled
+	return nil
+}
+
 func (o Order) AllowedActions(userID string, canApprove bool) []string {
+	if o.Status == StatusReserved && (canApprove || o.CreatedBy == userID) {
+		return []string{"CANCEL"}
+	}
 	if o.Status == StatusPendingApproval && canApprove && o.CreatedBy != userID {
 		return []string{"APPROVE", "REJECT"}
 	}

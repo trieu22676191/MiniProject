@@ -88,6 +88,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer consumerRunner.Stop()
+	cancellationHandler := consumer.NewOrderCancelled(usecase.NewReservations(reservationRepo))
+	cancellationRunner, err := inbox.Start(ctx, js, "stock-cancel", "mini.ord.order.cancelled", cancellationHandler.Handle, logger)
+	if err != nil {
+		logger.Error("start order cancellation consumer", "error", err)
+		os.Exit(1)
+	}
+	defer cancellationRunner.Stop()
 	go func() {
 		if err := outbox.Run(ctx, relayPool, js, "mini_stock", logger); err != nil {
 			logger.Error("stock outbox relay stopped", "error", err)

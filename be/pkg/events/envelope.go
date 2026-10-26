@@ -30,6 +30,10 @@ type OrderApproved struct {
 	} `json:"lines"`
 }
 
+type OrderCancelled struct {
+	OrderID string `json:"orderId"`
+}
+
 type ReservationHeld struct {
 	OrderID       string `json:"orderId"`
 	ReservationID string `json:"reservationId"`

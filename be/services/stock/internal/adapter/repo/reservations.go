@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -92,6 +93,68 @@ func (r *Reservations) ReserveOrder(ctx context.Context, eventID uuid.UUID, orde
 		return nil
 	})
 	return result, err
+}
+
+func (r *Reservations) CancelOrder(ctx context.Context, eventID, orderID uuid.UUID) error {
+	identity, err := tenant.FromContext(ctx)
+	if err != nil {
+		return err
+	}
+	return r.db.InTx(ctx, func(tx pgx.Tx) error {
+		queries := stocksql.New(tx)
+		inserted, err := queries.InsertInbox(ctx, stocksql.InsertInboxParams{
+			TenantID: pgUUID(identity.TenantID), Consumer: "stock.cancel", EventID: pgUUID(eventID),
+		})
+		if err != nil {
+			return fmt.Errorf("record stock cancellation event: %w", err)
+		}
+		if inserted == 0 {
+			return nil
+		}
+		reservationID, err := queries.LockHeldReservation(ctx, stocksql.LockHeldReservationParams{
+			TenantID: pgUUID(identity.TenantID), OrderID: pgUUID(orderID),
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			return fmt.Errorf("lock held reservation for cancellation: %w", err)
+		}
+		lines, err := queries.ListReservationLines(ctx, stocksql.ListReservationLinesParams{
+			TenantID: pgUUID(identity.TenantID), ReservationID: reservationID,
+		})
+		if err != nil {
+			return fmt.Errorf("list reservation lines for cancellation: %w", err)
+		}
+		skus := make([]string, 0, len(lines))
+		for _, line := range lines {
+			skus = append(skus, line.Sku)
+		}
+		locked, err := queries.LockStockForReservation(ctx, skus)
+		if err != nil {
+			return fmt.Errorf("lock stock rows for release: %w", err)
+		}
+		if len(locked) != len(lines) {
+			return fmt.Errorf("reservation references missing stock rows")
+		}
+		for _, line := range lines {
+			updated, err := queries.DecreaseReserved(ctx, stocksql.DecreaseReservedParams{
+				TenantID: pgUUID(identity.TenantID), Sku: line.Sku, Quantity: line.Quantity,
+			})
+			if err != nil {
+				return fmt.Errorf("release reserved stock for %s: %w", line.Sku, err)
+			}
+			if updated != 1 {
+				return fmt.Errorf("reserved stock for %s is lower than reservation quantity", line.Sku)
+			}
+		}
+		if err := queries.MarkReservationReleased(ctx, stocksql.MarkReservationReleasedParams{
+			TenantID: pgUUID(identity.TenantID), ReservationID: reservationID,
+		}); err != nil {
+			return fmt.Errorf("mark reservation released: %w", err)
+		}
+		return nil
+	})
 }
 
 func insertReservationResult(ctx context.Context, queries *stocksql.Queries, tenantID, causationID, orderID uuid.UUID, result domain.ReservationResult) error {
