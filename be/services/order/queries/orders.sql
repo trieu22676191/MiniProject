@@ -40,6 +40,16 @@ WHERE id = $1;
 INSERT INTO mini_order.outbox (id, tenant_id, type, payload)
 VALUES ($1, $2, $3, $4::jsonb);
 
+-- name: InsertInbox :execrows
+INSERT INTO mini_order.inbox (tenant_id, consumer, event_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING;
+
+-- name: ApplyReservationResult :execrows
+UPDATE mini_order.orders
+SET status = $2, updated_at = now()
+WHERE id = $1 AND status = 'APPROVED';
+
 -- name: ListOrderLines :many
 SELECT sku, quantity, unit_price::text AS unit_price,
        line_amount::text AS line_amount

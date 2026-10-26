@@ -17,6 +17,7 @@ type Repository interface {
 	CreateOrder(context.Context, domain.Order) (domain.Order, error)
 	ApproveOrder(context.Context, uuid.UUID, string) (domain.Order, error)
 	RejectOrder(context.Context, uuid.UUID, string, string) (domain.Order, error)
+	ProcessReservationResult(context.Context, uuid.UUID, uuid.UUID, string) error
 }
 
 type Stock interface {
@@ -120,4 +121,14 @@ func (u *Orders) RejectOrder(ctx context.Context, id uuid.UUID, reason string) (
 		return domain.Order{}, nil, err
 	}
 	return order, order.AllowedActions(identity.UserID, true), nil
+}
+
+func (u *Orders) ProcessReservationResult(ctx context.Context, eventID, orderID uuid.UUID, status string) error {
+	if _, err := tenant.FromContext(ctx); err != nil {
+		return err
+	}
+	if status != domain.StatusReserved && status != domain.StatusOutOfStock {
+		return domain.ErrInvalidOrder
+	}
+	return u.repo.ProcessReservationResult(ctx, eventID, orderID, status)
 }

@@ -162,6 +162,31 @@ func (r *Orders) RejectOrder(ctx context.Context, id uuid.UUID, actor, reason st
 	return r.GetOrder(ctx, id)
 }
 
+func (r *Orders) ProcessReservationResult(ctx context.Context, eventID, orderID uuid.UUID, state string) error {
+	identity, err := tenant.FromContext(ctx)
+	if err != nil {
+		return err
+	}
+	return r.db.InTx(ctx, func(tx pgx.Tx) error {
+		queries := ordersql.New(tx)
+		inserted, err := queries.InsertInbox(ctx, ordersql.InsertInboxParams{
+			TenantID: pgUUID(identity.TenantID), Consumer: "order.reservation_result", EventID: pgUUID(eventID),
+		})
+		if err != nil {
+			return fmt.Errorf("record order inbox event: %w", err)
+		}
+		if inserted == 0 {
+			return nil
+		}
+		if _, err := queries.ApplyReservationResult(ctx, ordersql.ApplyReservationResultParams{
+			ID: pgUUID(orderID), Status: state,
+		}); err != nil {
+			return fmt.Errorf("apply reservation result: %w", err)
+		}
+		return nil
+	})
+}
+
 func getOrder(ctx context.Context, queries *ordersql.Queries, id uuid.UUID) (domain.Order, error) {
 	row, err := queries.GetOrderByID(ctx, pgUUID(id))
 	if err != nil {

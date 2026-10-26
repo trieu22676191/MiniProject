@@ -30,7 +30,7 @@ be/                    # Go backend và hạ tầng
 
 Mỗi dịch vụ Go giữ quy tắc nghiệp vụ trong `domain` và `usecase`; `adapter` chứa giao tiếp gRPC, PostgreSQL và NATS. Một `go.mod` ở `be/` dành cho cả ba dịch vụ Go. `fe/src/lib/data` là nơi gọi BFF để các trang không gọi API trực tiếp.
 
-## Chạy phần Ngày 1 trên Windows
+## Chạy backend trên Windows
 
 Cần Go 1.27.x, Docker Desktop và PowerShell. Trong `be/`, cài đúng công cụ của đề:
 
@@ -48,8 +48,9 @@ Tạo `be/deploy/.env` từ `.env.example` và thay bốn mật khẩu mẫu. Fi
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 up
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 migrate
+# Terminal 1: chạy stock (gRPC :50052, consumer và outbox relay)
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 stock
-# Trong terminal khác, có thể chạy phần đọc đơn hiện có:
+# Terminal 2: chạy order (gRPC :50051, consumer và outbox relay)
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 order
 ```
 
@@ -67,4 +68,4 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` hiện có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; `bff` và web chưa triển khai. Hướng dẫn demo đầy đủ sẽ được bổ sung cùng các phần này. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. `bff` và web chưa triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.

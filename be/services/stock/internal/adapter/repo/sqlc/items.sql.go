@@ -7,6 +7,8 @@ package stocksql
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getStockItems = `-- name: GetStockItems :many
@@ -53,6 +55,103 @@ func (q *Queries) GetStockItems(ctx context.Context, skus []string) ([]GetStockI
 	return items, nil
 }
 
+const increaseReserved = `-- name: IncreaseReserved :exec
+UPDATE mini_stock.stock_items
+SET reserved = reserved + $3
+WHERE tenant_id = $1 AND sku = $2
+`
+
+type IncreaseReservedParams struct {
+	TenantID pgtype.UUID
+	Sku      string
+	Reserved int64
+}
+
+func (q *Queries) IncreaseReserved(ctx context.Context, arg IncreaseReservedParams) error {
+	_, err := q.db.Exec(ctx, increaseReserved, arg.TenantID, arg.Sku, arg.Reserved)
+	return err
+}
+
+const insertInbox = `-- name: InsertInbox :execrows
+INSERT INTO mini_stock.inbox (tenant_id, consumer, event_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type InsertInboxParams struct {
+	TenantID pgtype.UUID
+	Consumer string
+	EventID  pgtype.UUID
+}
+
+func (q *Queries) InsertInbox(ctx context.Context, arg InsertInboxParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertInbox, arg.TenantID, arg.Consumer, arg.EventID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertReservation = `-- name: InsertReservation :exec
+INSERT INTO mini_stock.reservations (id, tenant_id, order_id, status)
+VALUES ($1, $2, $3, 'HELD')
+`
+
+type InsertReservationParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	OrderID  pgtype.UUID
+}
+
+func (q *Queries) InsertReservation(ctx context.Context, arg InsertReservationParams) error {
+	_, err := q.db.Exec(ctx, insertReservation, arg.ID, arg.TenantID, arg.OrderID)
+	return err
+}
+
+const insertReservationLine = `-- name: InsertReservationLine :exec
+INSERT INTO mini_stock.reservation_lines (tenant_id, reservation_id, sku, quantity)
+VALUES ($1, $2, $3, $4)
+`
+
+type InsertReservationLineParams struct {
+	TenantID      pgtype.UUID
+	ReservationID pgtype.UUID
+	Sku           string
+	Quantity      int64
+}
+
+func (q *Queries) InsertReservationLine(ctx context.Context, arg InsertReservationLineParams) error {
+	_, err := q.db.Exec(ctx, insertReservationLine,
+		arg.TenantID,
+		arg.ReservationID,
+		arg.Sku,
+		arg.Quantity,
+	)
+	return err
+}
+
+const insertStockOutbox = `-- name: InsertStockOutbox :exec
+INSERT INTO mini_stock.outbox (id, tenant_id, type, payload)
+VALUES ($1, $2, $3, $4::jsonb)
+`
+
+type InsertStockOutboxParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	Type     string
+	Column4  []byte
+}
+
+func (q *Queries) InsertStockOutbox(ctx context.Context, arg InsertStockOutboxParams) error {
+	_, err := q.db.Exec(ctx, insertStockOutbox,
+		arg.ID,
+		arg.TenantID,
+		arg.Type,
+		arg.Column4,
+	)
+	return err
+}
+
 const listStockItems = `-- name: ListStockItems :many
 SELECT sku, name, unit_price::text AS unit_price, currency_code,
        on_hand, reserved
@@ -86,6 +185,40 @@ func (q *Queries) ListStockItems(ctx context.Context) ([]ListStockItemsRow, erro
 			&i.OnHand,
 			&i.Reserved,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockStockForReservation = `-- name: LockStockForReservation :many
+SELECT sku, on_hand, reserved
+FROM mini_stock.stock_items
+WHERE sku = ANY($1::text[])
+ORDER BY sku
+FOR UPDATE
+`
+
+type LockStockForReservationRow struct {
+	Sku      string
+	OnHand   int64
+	Reserved int64
+}
+
+func (q *Queries) LockStockForReservation(ctx context.Context, skus []string) ([]LockStockForReservationRow, error) {
+	rows, err := q.db.Query(ctx, lockStockForReservation, skus)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockStockForReservationRow
+	for rows.Next() {
+		var i LockStockForReservationRow
+		if err := rows.Scan(&i.Sku, &i.OnHand, &i.Reserved); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -18,7 +18,7 @@ function Read-Config {
     Get-Content -LiteralPath $envFile | ForEach-Object {
         if ($_ -match '^([^#=]+)=(.*)$') { $config[$Matches[1]] = $Matches[2] }
     }
-    foreach ($key in @('POSTGRES_PASSWORD', 'MINI_OWNER_PASSWORD', 'MINI_APP_PASSWORD')) {
+    foreach ($key in @('POSTGRES_PASSWORD', 'MINI_OWNER_PASSWORD', 'MINI_APP_PASSWORD', 'MINI_RELAY_PASSWORD')) {
         if (-not $config[$key]) { throw "Missing $key in deploy/.env" }
     }
     if (-not $config['POSTGRES_HOST_PORT']) { $config['POSTGRES_HOST_PORT'] = '15432' }
@@ -51,14 +51,16 @@ switch ($Action) {
     'stock' {
         $config = Read-Config
         $env:STOCK_DATABASE_URL = Database-URL 'mini_app' $config['MINI_APP_PASSWORD'] 'mini' $config['POSTGRES_HOST_PORT']
+        $env:OUTBOX_DATABASE_URL = Database-URL 'mini_relay' $config['MINI_RELAY_PASSWORD'] 'mini' $config['POSTGRES_HOST_PORT']
         Push-Location $beRoot
-        try { & go run ./services/stock/cmd/server } finally { Pop-Location; Remove-Item Env:STOCK_DATABASE_URL }
+        try { & go run ./services/stock/cmd/server } finally { Pop-Location; Remove-Item Env:STOCK_DATABASE_URL,Env:OUTBOX_DATABASE_URL -ErrorAction SilentlyContinue }
     }
     'order' {
         $config = Read-Config
         $env:ORDER_DATABASE_URL = Database-URL 'mini_app' $config['MINI_APP_PASSWORD'] 'mini' $config['POSTGRES_HOST_PORT']
+        $env:OUTBOX_DATABASE_URL = Database-URL 'mini_relay' $config['MINI_RELAY_PASSWORD'] 'mini' $config['POSTGRES_HOST_PORT']
         Push-Location $beRoot
-        try { & go run ./services/order/cmd/server } finally { Pop-Location; Remove-Item Env:ORDER_DATABASE_URL }
+        try { & go run ./services/order/cmd/server } finally { Pop-Location; Remove-Item Env:ORDER_DATABASE_URL,Env:OUTBOX_DATABASE_URL -ErrorAction SilentlyContinue }
     }
     'test' {
         $config = Read-Config

@@ -11,6 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const applyReservationResult = `-- name: ApplyReservationResult :execrows
+UPDATE mini_order.orders
+SET status = $2, updated_at = now()
+WHERE id = $1 AND status = 'APPROVED'
+`
+
+type ApplyReservationResultParams struct {
+	ID     pgtype.UUID
+	Status string
+}
+
+func (q *Queries) ApplyReservationResult(ctx context.Context, arg ApplyReservationResultParams) (int64, error) {
+	result, err := q.db.Exec(ctx, applyReservationResult, arg.ID, arg.Status)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getOrderByID = `-- name: GetOrderByID :one
 SELECT id, code, status, created_by, decided_by, reject_reason,
        total_amount::text AS total_amount, currency_code
@@ -43,6 +62,26 @@ func (q *Queries) GetOrderByID(ctx context.Context, id pgtype.UUID) (GetOrderByI
 		&i.CurrencyCode,
 	)
 	return i, err
+}
+
+const insertInbox = `-- name: InsertInbox :execrows
+INSERT INTO mini_order.inbox (tenant_id, consumer, event_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type InsertInboxParams struct {
+	TenantID pgtype.UUID
+	Consumer string
+	EventID  pgtype.UUID
+}
+
+func (q *Queries) InsertInbox(ctx context.Context, arg InsertInboxParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertInbox, arg.TenantID, arg.Consumer, arg.EventID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const insertOrder = `-- name: InsertOrder :exec
