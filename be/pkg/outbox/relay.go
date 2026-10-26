@@ -17,7 +17,11 @@ type Event struct {
 	Payload []byte
 }
 
-func Run(ctx context.Context, pool *pgxpool.Pool, stream jetstream.Publisher, schema string, logger *slog.Logger) error {
+type publisher interface {
+	PublishMsg(context.Context, *nats.Msg, ...jetstream.PublishOpt) (*jetstream.PubAck, error)
+}
+
+func Run(ctx context.Context, pool *pgxpool.Pool, stream publisher, schema string, logger *slog.Logger) error {
 	if schema != "mini_order" && schema != "mini_stock" {
 		return fmt.Errorf("unsupported outbox schema %q", schema)
 	}
@@ -35,7 +39,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool, stream jetstream.Publisher, sc
 	}
 }
 
-func publishBatch(ctx context.Context, pool *pgxpool.Pool, stream jetstream.Publisher, schema string) error {
+func publishBatch(ctx context.Context, pool *pgxpool.Pool, stream publisher, schema string) error {
 	batchCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	tx, err := pool.Begin(batchCtx)

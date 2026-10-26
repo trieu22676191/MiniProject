@@ -5,6 +5,7 @@ package outbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -62,6 +63,17 @@ func TestOutboxRelay_PublishesToJetStreamBeforeMarkingPublished(t *testing.T) {
 	if err := inbox.EnsureStream(ctx, js); err != nil {
 		t.Fatal(err)
 	}
+	if err := publishBatch(ctx, relayPool, unavailablePublisher{}, "mini_order"); err == nil {
+		t.Fatal("relay succeeded while JetStream publisher was unavailable")
+	}
+	var pending bool
+	if err := relayPool.QueryRow(ctx, `SELECT published_at IS NULL FROM mini_order.outbox WHERE id = $1`, eventID).Scan(&pending); err != nil {
+		t.Fatal(err)
+	}
+	if !pending {
+		t.Fatal("failed publish must leave the event pending for relay recovery")
+	}
+
 	durable := "relay-test-" + eventID.String()[:8]
 	consumer, err := js.CreateOrUpdateConsumer(ctx, "MINI", jetstream.ConsumerConfig{
 		Durable: durable, FilterSubject: subject,
@@ -126,6 +138,14 @@ func TestOutboxRelay_PublishesToJetStreamBeforeMarkingPublished(t *testing.T) {
 		t.Fatal(fmt.Sprintf("JetStream did not deliver subject %s", subject))
 	}
 }
+
+type unavailablePublisher struct{}
+
+func (unavailablePublisher) PublishMsg(context.Context, *nats.Msg, ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
+	return nil, errors.New("simulated JetStream outage")
+}
+
+var _ publisher = unavailablePublisher{}
 
 func openPool(t *testing.T, ctx context.Context, url string) *pgxpool.Pool {
 	t.Helper()
