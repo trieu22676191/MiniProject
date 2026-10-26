@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError, getMe, listOrders } from "@/lib/data/api";
-import { formatMoney, statusLabel } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 
 export default async function OrdersPage() {

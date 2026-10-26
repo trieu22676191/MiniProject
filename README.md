@@ -30,6 +30,18 @@ be/                    # Go backend và hạ tầng
 
 Mỗi dịch vụ Go giữ quy tắc nghiệp vụ trong `domain` và `usecase`; `adapter` chứa giao tiếp gRPC, PostgreSQL và NATS. Một `go.mod` ở `be/` dành cho cả ba dịch vụ Go. `fe/src/lib/data` là nơi gọi BFF để các trang không gọi API trực tiếp.
 
+## Công nghệ trong đề
+
+| Phần | Công nghệ đang dùng |
+| --- | --- |
+| Backend | Go 1.27, gRPC 1.83, Protocol Buffers, Buf 1.54 |
+| Truy vấn và migration | PostgreSQL 18.1, pgx 5.11, sqlc 1.30, goose 3.26 |
+| Giao tiếp sự kiện | NATS 2.15 JetStream, outbox/inbox |
+| Frontend | Node.js 24.22.1, pnpm 11, Next.js 16, React 19, TypeScript 5.9, Tailwind CSS 4 |
+| Môi trường local | Docker Compose |
+
+Các phiên bản Node.js được ghim trong `.node-version`; `fe/package.json` ghim pnpm 11. Cấu hình pnpm chỉ cho phép postinstall của `unrs-resolver`, cần cho dependency phân giải module của ESLint.
+
 ## Chạy backend trên Windows
 
 Cần Go 1.27.x, Docker Desktop và PowerShell. Trong `be/`, cài đúng công cụ của đề:
