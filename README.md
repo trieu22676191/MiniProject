@@ -71,4 +71,15 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. bốn route frontend và REST BFF đã được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. REST BFF và bốn màn frontend đã được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+
+## Demo luồng đơn hàng
+
+Sau khi mở web tại `http://localhost:3000`:
+
+1. Chọn **An**, tạo đơn có `BAN-01` số lượng `1`, rồi gửi duyệt. Đơn xuất hiện ở trạng thái chờ duyệt.
+2. Chọn **Chi**, mở đơn vừa tạo và duyệt. Đơn chuyển qua trạng thái chờ kho xác nhận rồi thành **Đã giữ hàng**; tồn khả dụng của `BAN-01` giảm một.
+3. Để xem trường hợp thiếu hàng, chọn **An** và tạo đơn `DEN-01` số lượng `2` (seed chỉ có một chiếc), sau đó duyệt bằng **Chi**. Kết quả dự kiến là **Thiếu hàng**; kho không giữ một phần đơn.
+4. Chọn **Dũng** để xem tenant B. Danh sách chỉ có dữ liệu tenant B; mở trực tiếp ID đơn tenant A cũng phải trả về không tìm thấy.
+
+Các bước trên mô tả kết quả mong đợi của demo, chưa thay thế integration test cho AC-05–08.
