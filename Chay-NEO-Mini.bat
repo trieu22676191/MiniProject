@@ -11,15 +11,8 @@ if not exist "be\deploy\.env" (
     exit /b 1
 )
 
-echo Dang kiem tra cac cong cua du an...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$occupied=Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 3000,8080,50051,50052 }; if($occupied){$occupied | Select-Object LocalPort,OwningProcess | Format-Table -AutoSize; exit 1}"
-if errorlevel 1 (
-    echo Du an cu van dang chay: 3000=Frontend, 8080=BFF, 50051=Order, 50052=Stock.
-    echo Hay dong cac cua so dich vu cu bang Ctrl+C, sau do nhap dup file nay lai.
-    echo Cot OwningProcess o tren la PID de tim tien trinh trong Task Manager.
-    pause
-    exit /b 1
-)
+echo Dang kiem tra va giai phong cac cong neu co (3000, 8080, 50051, 50052)...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ports = 3000, 8080, 50051, 50052; $occupied = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $ports -contains $_.LocalPort }; if ($occupied) { foreach ($p in ($occupied.OwningProcess | Select-Object -Unique)) { if ($p -gt 4) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue; Write-Host \"Da giai phong tien trinh cu chiem cong: $p\" } } Start-Sleep -Milliseconds 800 }"
 
 echo [1/3] Dang bat PostgreSQL va NATS, cho PostgreSQL san sang va chay migration...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Set-Location '%~dp0be'; & '.\scripts\dev.ps1' up; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}; $deadline=(Get-Date).AddMinutes(2); $ready=$false; do {$health=docker inspect --format '{{.State.Health.Status}}' deploy-postgres-1 2>$null; $nats=Test-NetConnection 127.0.0.1 -Port 4222 -InformationLevel Quiet -WarningAction SilentlyContinue; if($health -eq 'healthy' -and $nats){$ready=$true; break}; Start-Sleep -Seconds 2} while((Get-Date) -lt $deadline); if(-not $ready){Write-Error 'PostgreSQL hoac NATS chua san sang. Hay kiem tra Docker Desktop.'; exit 1}; & '.\scripts\dev.ps1' migrate; exit $LASTEXITCODE"
