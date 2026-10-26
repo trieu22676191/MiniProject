@@ -92,7 +92,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE mini_owner IN SCHEMA mini_order, mini_stock
             $env:MINI_TEST_RELAY_DATABASE_URL = Database-URL 'mini_relay' $config['MINI_RELAY_PASSWORD'] $testDB $config['POSTGRES_HOST_PORT']
             Push-Location $beRoot
             try {
-                & go test -tags integration ./...
+                & go test -count=1 -tags integration ./...
                 if ($LASTEXITCODE -ne 0) { throw 'Integration tests failed' }
             } finally { Pop-Location }
         } finally {
