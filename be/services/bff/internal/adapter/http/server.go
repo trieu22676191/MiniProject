@@ -331,9 +331,6 @@ func (s *Server) writeRPCError(w http.ResponseWriter, err error) {
 		if code == "SELF_APPROVAL" {
 			message = "Bạn không thể tự duyệt đơn hàng của mình."
 		}
-		if code == "INSUFFICIENT_STOCK" {
-			message = "Số lượng đặt vượt quá tồn kho khả dụng."
-		}
 	}
 	writeError(w, httpStatus, code, message)
 }

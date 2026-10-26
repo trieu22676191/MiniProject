@@ -51,7 +51,7 @@ func (c *StockClient) GetItems(ctx context.Context, skus []string) (map[string]d
 		if err != nil {
 			return nil, fmt.Errorf("parse stock price: %w", err)
 		}
-		prices[item.GetSku()] = domain.Price{UnitPriceCents: cents, CurrencyCode: item.GetUnitPrice().GetCurrencyCode(), Available: item.GetAvailable()}
+		prices[item.GetSku()] = domain.Price{UnitPriceCents: cents, CurrencyCode: item.GetUnitPrice().GetCurrencyCode()}
 	}
 	if len(prices) != len(skus) {
 		return nil, fmt.Errorf("stock returned %d prices for %d SKUs", len(prices), len(skus))

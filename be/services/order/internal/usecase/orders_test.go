@@ -107,8 +107,8 @@ func TestCreateOrder_AC01_ServerPricesAndClientPricesIgnored(t *testing.T) {
 	repo := &fakeRepo{}
 	stock := &fakeStock{
 		prices: map[string]domain.Price{
-			"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND", Available: 10},
-			"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND", Available: 10},
+			"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND"},
+			"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND"},
 		},
 	}
 	uc := NewOrders(repo, stock)

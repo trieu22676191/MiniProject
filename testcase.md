@@ -103,19 +103,19 @@ Tài liệu hướng dẫn từng bước kiểm thử giao diện và nghiệp 
 ---
 
 ### Test Case AC-06: Duyệt đơn thiếu hàng $\rightarrow$ Hết hàng (`OUT_OF_STOCK`)
-- **Mục tiêu**: Kho thiếu hàng (dù chỉ 1 dòng) thì không giữ dòng nào, đơn chuyển thành `OUT_OF_STOCK`.
+- **Mục tiêu**: Kho thiếu hàng (dù chỉ 1 dòng) thì không giữ dòng nào, đơn chuyển thành `OUT_OF_STOCK`. Theo đặc tả Section 2 & 6.1 của tài liệu, việc tạo đơn chỉ tra cứu đơn giá (`StockService.GetItems`), việc kiểm tra và giữ hàng diễn ra nguyên tử khi duyệt đơn.
 - **Các bước thực hiện**:
-  1. Kiểm tra tồn kho của đèn bàn `DEN-01` (dữ liệu ban đầu chỉ có 1 chiếc).
-  2. Chuyển sang tài khoản **An**, tạo liên tiếp **2 đơn hàng**:
-     - Đơn thứ nhất: Chọn `DEN-01` số lượng `1` $\rightarrow$ bấm **Tạo đơn**.
-     - Đơn thứ hai: Chọn `DEN-01` số lượng `1` $\rightarrow$ bấm **Tạo đơn**.
+  1. Kiểm tra tồn kho của đèn bàn `DEN-01` (dữ liệu ban đầu chỉ có 1 chiếc khả dụng).
+  2. Chuyển sang tài khoản **An**, tạo đơn hàng thiếu:
+     - **Cách 1 (Tạo 1 đơn đặt vượt số lượng)**: Chọn `DEN-01` với số lượng `2` $\rightarrow$ bấm **Tạo đơn** (đơn tạo thành công ở trạng thái `SUBMITTED`).
+     - **Cách 2 (Tạo 2 đơn liên tiếp cạnh tranh)**: Tạo 2 đơn riêng biệt, mỗi đơn chọn `DEN-01` số lượng `1`.
   3. Chuyển sang tài khoản **Chi**:
-     - Mở đơn thứ nhất $\rightarrow$ bấm **"Duyệt đơn"** $\rightarrow$ Đơn thứ nhất giữ được chiếc đèn duy nhất và chuyển thành **"Đã giữ hàng"** (`RESERVED`).
-     - Mở đơn thứ hai $\rightarrow$ bấm **"Duyệt đơn"**.
+     - *Nếu làm theo Cách 1*: Mở đơn $\rightarrow$ bấm **"Duyệt đơn"**.
+     - *Nếu làm theo Cách 2*: Mở đơn thứ nhất $\rightarrow$ bấm **"Duyệt đơn"** (chuyển thành `RESERVED`). Sau đó mở đơn thứ hai $\rightarrow$ bấm **"Duyệt đơn"**.
 - **Kết quả mong đợi**:
-  - [x] Đơn thứ hai chuyển trạng thái thành **"Thiếu hàng"** (`OUT_OF_STOCK`) với nhãn cảnh báo đỏ cam.
+  - [x] Đơn thiếu hàng chuyển trạng thái thành **"Thiếu hàng"** (`OUT_OF_STOCK`) với nhãn cảnh báo đỏ cam.
   - [x] Hiển thị thông báo: *"Kho không đủ số lượng để giữ đơn hàng này. Không có mặt hàng nào bị giữ một phần."*
-  - [x] Kiểm tra kho: Số lượng `reserved` của `DEN-01` chỉ là 1, không bao giờ vượt quá tồn thực tế.
+  - [x] Kiểm tra kho: Số lượng `reserved` của `DEN-01` không bao giờ vượt quá tồn thực tế.
 
 ---
 
@@ -189,3 +189,4 @@ Tài liệu hướng dẫn từng bước kiểm thử giao diện và nghiệp 
 | **AC-09** | Chặn duyệt đơn đã `REJECTED` | Khóa trạng thái, trả INVALID_TRANSITION | [ ] Đạt |
 | **EX-01** | Hủy đơn đã giữ hàng, nhả tồn kho | Đơn CANCELLED, kho hoàn lại số lượng | [ ] Đạt |
 | **EX-03** | Điều chỉnh tồn kho an toàn | Cập nhật được, không hạ thấp hơn reserved | [ ] Đạt |
+

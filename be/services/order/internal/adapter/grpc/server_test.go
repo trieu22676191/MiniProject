@@ -49,15 +49,6 @@ func TestToStatus_AC01_UnwrapsUpstreamNotFoundFromStock(t *testing.T) {
 	}
 }
 
-func TestToStatus_MapsInsufficientStockToFailedPreconditionWithReason(t *testing.T) {
-	err := toStatus(domain.ErrInsufficientStock)
-	st, ok := status.FromError(err)
-	if !ok || st.Code() != codes.FailedPrecondition {
-		t.Fatalf("code = %v, want %v", st.Code(), codes.FailedPrecondition)
-	}
-	assertReason(t, st, "INSUFFICIENT_STOCK")
-}
-
 func assertReason(t *testing.T, st *status.Status, wantReason string) {
 	t.Helper()
 	for _, detail := range st.Details() {

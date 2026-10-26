@@ -21,8 +21,8 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 				{SKU: "DEN-01", Quantity: 3},
 			},
 			prices: map[string]Price{
-				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND", Available: 10},
-				"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND", Available: 10},
+				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND"},
+				"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND"},
 			},
 			wantTotal: 304_000_000,
 			wantLines: []int64{250_000_000, 54_000_000},
@@ -34,7 +34,7 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 				{SKU: "BAN-01", Quantity: 1},
 			},
 			prices: map[string]Price{
-				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND", Available: 5},
+				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND"},
 			},
 			wantTotal: 125_000_000,
 			wantLines: []int64{125_000_000},
@@ -47,7 +47,7 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 				{SKU: "DEN-99", Quantity: 1},
 			},
 			prices: map[string]Price{
-				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND", Available: 5},
+				"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND"},
 			},
 			wantErr: ErrInvalidOrder,
 		},
@@ -73,15 +73,6 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestNewOrder_RejectsQuantityAboveAvailableStock(t *testing.T) {
-	_, err := NewOrder("order-id", "an", []LineInput{{SKU: "DEN-01", Quantity: 2}}, map[string]Price{
-		"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND", Available: 1},
-	})
-	if !errors.Is(err, ErrInsufficientStock) {
-		t.Fatalf("NewOrder error = %v, want %v", err, ErrInsufficientStock)
 	}
 }
 

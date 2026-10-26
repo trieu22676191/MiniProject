@@ -117,8 +117,6 @@ func toStatus(err error) error {
 		code, reason, message = codes.FailedPrecondition, "INVALID_TRANSITION", "order state does not allow this action"
 	case errors.Is(err, domain.ErrInvalidOrder):
 		code, reason, message = codes.InvalidArgument, "INVALID_ARGUMENT", "invalid order input"
-	case errors.Is(err, domain.ErrInsufficientStock):
-		code, reason, message = codes.FailedPrecondition, "INSUFFICIENT_STOCK", "requested quantity exceeds available stock"
 	case errors.Is(err, pgx.ErrNoRows):
 		code, reason, message = codes.NotFound, "NOT_FOUND", "order not found"
 	default:
