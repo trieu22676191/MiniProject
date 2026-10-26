@@ -7,8 +7,8 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 		{SKU: "BAN-01", Quantity: 2},
 		{SKU: "DEN-01", Quantity: 3},
 	}, map[string]Price{
-		"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND"},
-		"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND"},
+		"BAN-01": {UnitPriceCents: 125_000_000, CurrencyCode: "VND", Available: 2},
+		"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND", Available: 3},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -18,6 +18,15 @@ func TestNewOrder_AC01_TotalUsesCentsAndServerPrices(t *testing.T) {
 	}
 	if order.Lines[0].LineCents != 250_000_000 || order.Lines[1].LineCents != 54_000_000 {
 		t.Fatalf("line totals = %d, %d; want 250000000, 54000000", order.Lines[0].LineCents, order.Lines[1].LineCents)
+	}
+}
+
+func TestNewOrder_RejectsQuantityAboveAvailableStock(t *testing.T) {
+	_, err := NewOrder("order-id", "an", []LineInput{{SKU: "DEN-01", Quantity: 2}}, map[string]Price{
+		"DEN-01": {UnitPriceCents: 18_000_000, CurrencyCode: "VND", Available: 1},
+	})
+	if err != ErrInsufficientStock {
+		t.Fatalf("NewOrder error = %v, want %v", err, ErrInsufficientStock)
 	}
 }
 

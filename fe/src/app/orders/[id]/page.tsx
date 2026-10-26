@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, getOrder } from "@/lib/data/api";
 import { formatMoney, statusLabel } from "@/lib/format";
-import { OrderActions, RefreshWhileReserving } from "@/components/order-actions";
+import { OrderActions, RefreshButton, RefreshWhileReserving } from "@/components/order-actions";
 import { StatusPill } from "@/components/status-pill";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
@@ -24,7 +24,18 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         <StatusPill status={order.status} />
       </div>
       {error && <p className="mt-6 rounded-xl border border-[#f1d5cb] bg-[#fff7f3] px-4 py-3 text-sm text-[#a34730]">{error === "SELF_APPROVAL" ? "Bạn không thể tự duyệt đơn hàng của mình." : error === "INVALID_TRANSITION" ? "Trạng thái đơn hàng đã thay đổi, vui lòng tải lại." : error === "PERMISSION_DENIED" ? "Bạn không có quyền thực hiện thao tác này." : "Không thể xử lý đơn hàng."}</p>}
-      {order.status === "APPROVED" && <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#d8e3ff] bg-[#f5f7ff] p-4 text-sm text-[#42578e]"><span className="mt-0.5 animate-pulse">●</span><span><strong className="font-semibold">Kho đang xác nhận hàng.</strong><span className="mt-1 block text-xs leading-5">Trang sẽ tự làm mới khi có kết quả giữ hàng.</span></span></div>}
+      {order.status === "APPROVED" && (
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#d8e3ff] bg-[#f5f7ff] p-4 text-sm text-[#42578e] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 animate-pulse">●</span>
+            <span>
+              <strong className="font-semibold">Kho đang xác nhận hàng.</strong>
+              <span className="mt-1 block text-xs leading-5">Trang sẽ tự làm mới khi có kết quả giữ hàng.</span>
+            </span>
+          </div>
+          <RefreshButton />
+        </div>
+      )}
       {order.status === "OUT_OF_STOCK" && <div className="mt-6 rounded-2xl border border-[#f1d5cb] bg-[#fff7f3] p-4 text-sm text-[#a34730]">Kho không đủ số lượng để giữ đơn hàng này. Không có mặt hàng nào bị giữ một phần.</div>}
       {order.status === "REJECTED" && order.rejectReason && <div className="mt-6 rounded-2xl border border-line bg-white p-4"><p className="text-xs font-semibold text-muted">Lý do từ chối</p><p className="mt-2 text-sm leading-6">{order.rejectReason}</p></div>}
       {order.status === "CANCELLED" && <div className="mt-6 rounded-2xl border border-line bg-[#f7f7f5] p-4 text-sm text-muted">Đơn hàng đã được hủy. Số lượng hàng đã giữ (nếu có) được trả lại kho.</div>}

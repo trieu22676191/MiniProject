@@ -35,3 +35,16 @@ export function RefreshWhileReserving({ status }: { status: string }) {
   }, [router, status]);
   return null;
 }
+
+export function RefreshButton() {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() => router.refresh()}
+      className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-[#b8ccfa] bg-white px-3 text-xs font-semibold text-[#3b5998] transition hover:bg-[#ebf1ff]"
+    >
+      Làm mới
+    </button>
+  );
+}

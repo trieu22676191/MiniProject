@@ -91,7 +91,7 @@ Sau khi mở web tại `http://localhost:3000`:
 
 1. Chọn **An**, tạo đơn có `BAN-01` số lượng `1`, rồi gửi duyệt. Đơn xuất hiện ở trạng thái chờ duyệt.
 2. Chọn **Chi**, mở đơn vừa tạo và duyệt. Đơn chuyển qua trạng thái chờ kho xác nhận rồi thành **Đã giữ hàng**; tồn khả dụng của `BAN-01` giảm một.
-3. Để xem trường hợp thiếu hàng, chọn **An** và tạo đơn `DEN-01` số lượng `2` (seed chỉ có một chiếc), sau đó duyệt bằng **Chi**. Kết quả dự kiến là **Thiếu hàng**; kho không giữ một phần đơn.
+3. Để xem trường hợp thiếu hàng, chọn **An** và tạo **hai đơn** cùng đặt `DEN-01` số lượng `1` (seed chỉ có một chiếc). Sau đó dùng **Chi** duyệt lần lượt hai đơn. Đơn thứ nhất giữ được hàng; đơn thứ hai chuyển thành **Thiếu hàng** vì tồn thay đổi sau khi tạo đơn. Kho không giữ một phần đơn.
 4. Chọn **Dũng** để xem tenant B. Danh sách chỉ có dữ liệu tenant B; mở trực tiếp ID đơn tenant A cũng phải trả về không tìm thấy.
 5. Chọn **Kho** để mở mục **Tồn kho**, xem tồn có sẵn và điều chỉnh số lượng. Số lượng mới không thể thấp hơn phần đang được giữ.
 

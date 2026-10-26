@@ -17,6 +17,7 @@ const (
 
 var (
 	ErrInvalidOrder      = errors.New("invalid order")
+	ErrInsufficientStock = errors.New("requested quantity exceeds available stock")
 	ErrInvalidTransition = errors.New("invalid order state transition")
 	ErrSelfApproval      = errors.New("order creator cannot approve their own order")
 	ErrCancelForbidden   = errors.New("order cancellation denied")
@@ -30,6 +31,7 @@ type LineInput struct {
 type Price struct {
 	UnitPriceCents int64
 	CurrencyCode   string
+	Available      int64
 }
 
 type Line struct {
@@ -60,6 +62,9 @@ func NewOrder(id, creator string, inputs []LineInput, prices map[string]Price) (
 		price, ok := prices[input.SKU]
 		if !ok || price.CurrencyCode != order.CurrencyCode || price.UnitPriceCents < 0 {
 			return Order{}, ErrInvalidOrder
+		}
+		if input.Quantity > price.Available {
+			return Order{}, ErrInsufficientStock
 		}
 		if input.Quantity > money.MaxDatabaseCents/max(price.UnitPriceCents, 1) {
 			return Order{}, ErrInvalidOrder

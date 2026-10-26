@@ -17,7 +17,7 @@ export async function selectUserAction(formData: FormData) {
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });
-  redirect("/orders");
+  redirect(user === "kho" ? "/stock" : "/orders");
 }
 
 function actionError(error: unknown, fallback: string): never {
@@ -26,11 +26,16 @@ function actionError(error: unknown, fallback: string): never {
 }
 
 export async function createOrderAction(formData: FormData) {
-  const skus = formData.getAll("sku").map(String);
-  const quantities = formData.getAll("quantity").map((value) => Number(value));
-  const lines = skus
-    .map((sku, index) => ({ sku, quantity: quantities[index] }))
-    .filter((line) => line.sku && Number.isInteger(line.quantity) && line.quantity > 0);
+  const skus = formData.getAll("sku").map((value) => String(value).trim());
+  const quantities = formData.getAll("quantity").map(String);
+  if (skus.length !== quantities.length) redirect("/orders/new?error=INVALID_ARGUMENT");
+  const lines = skus.flatMap((sku, index) => {
+    const rawQuantity = quantities[index].trim();
+    if (!sku && !rawQuantity) return [];
+    const quantity = Number(rawQuantity);
+    if (!sku || !Number.isSafeInteger(quantity) || quantity <= 0) redirect("/orders/new?error=INVALID_ARGUMENT");
+    return [{ sku, quantity }];
+  });
   let response: { order: { id: string } };
   try {
     response = await submit<{ order: { id: string } }>("/api/orders", "POST", { lines });
