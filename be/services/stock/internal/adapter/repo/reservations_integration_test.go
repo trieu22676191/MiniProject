@@ -174,6 +174,50 @@ func TestStockAdjustment_EX03_RejectsAmountBelowReserved(t *testing.T) {
 	}
 }
 
+func TestReservation_AC08_WithoutLock_ConcurrentWritesHitConstraint(t *testing.T) {
+	database, ctx := reservationTestDatabase(t)
+	sku := uniqueReservationSKU(t, "AC08-NOLOCK")
+	insertReservationStock(t, database, ctx, sku, 1)
+	ready := make(chan struct{}, 2)
+	release := make(chan struct{})
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			err := db.New(database).InTx(ctx, func(tx pgx.Tx) error {
+				var onHand, reserved int64
+				if err := tx.QueryRow(ctx, `SELECT on_hand, reserved FROM mini_stock.stock_items
+					WHERE tenant_id = $1 AND sku = $2`, reservationTenant, sku).Scan(&onHand, &reserved); err != nil {
+					return err
+				}
+				if onHand-reserved != 1 {
+					return fmt.Errorf("fixture available = %d, want 1", onHand-reserved)
+				}
+				ready <- struct{}{}
+				<-release
+				_, err := tx.Exec(ctx, `UPDATE mini_stock.stock_items SET reserved = reserved + 1
+					WHERE tenant_id = $1 AND sku = $2`, reservationTenant, sku)
+				return err
+			})
+			errs <- err
+		}()
+	}
+	for range 2 {
+		select {
+		case <-ready:
+		case <-ctx.Done():
+			t.Fatal("transactions did not both read available stock")
+		}
+	}
+	close(release)
+	firstErr, secondErr := <-errs, <-errs
+	if (firstErr == nil) == (secondErr == nil) {
+		t.Fatalf("unlocked updates returned errors (%v, %v), want exactly one constraint error", firstErr, secondErr)
+	}
+	if got := readReserved(t, database, ctx, sku); got != 1 {
+		t.Fatalf("database constraint allowed reserved = %d, want 1", got)
+	}
+}
+
 func reservationTestDatabase(t *testing.T) (*pgxpool.Pool, context.Context) {
 	t.Helper()
 	url := os.Getenv("MINI_TEST_APP_DATABASE_URL")
