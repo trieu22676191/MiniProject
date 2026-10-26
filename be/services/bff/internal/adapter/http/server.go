@@ -223,10 +223,11 @@ func mapOrder(order *orderv1.Order) orderDTO {
 			UnitPrice: mapMoney(line.GetUnitPrice()), LineAmount: mapMoney(line.GetLineAmount()),
 		})
 	}
+	actions := append([]string{}, order.GetAllowedActions()...)
 	return orderDTO{
 		ID: order.GetId(), Code: order.GetCode(), Status: order.GetStatus(),
 		CreatedBy: order.GetCreatedBy(), DecidedBy: order.GetDecidedBy(), RejectReason: order.GetRejectReason(),
-		TotalAmount: mapMoney(order.GetTotalAmount()), Lines: lines, AllowedActions: order.GetAllowedActions(),
+		TotalAmount: mapMoney(order.GetTotalAmount()), Lines: lines, AllowedActions: actions,
 	}
 }
 

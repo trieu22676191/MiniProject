@@ -89,6 +89,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE mini_owner IN SCHEMA mini_order, mini_stock
             Migrate-Database $testDB $config
             $env:MINI_TEST_OWNER_DATABASE_URL = Database-URL 'mini_owner' $config['MINI_OWNER_PASSWORD'] $testDB $config['POSTGRES_HOST_PORT']
             $env:MINI_TEST_APP_DATABASE_URL = Database-URL 'mini_app' $config['MINI_APP_PASSWORD'] $testDB $config['POSTGRES_HOST_PORT']
+            $env:MINI_TEST_RELAY_DATABASE_URL = Database-URL 'mini_relay' $config['MINI_RELAY_PASSWORD'] $testDB $config['POSTGRES_HOST_PORT']
             Push-Location $beRoot
             try {
                 & go test -tags integration ./...
@@ -97,6 +98,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE mini_owner IN SCHEMA mini_order, mini_stock
         } finally {
             Remove-Item Env:MINI_TEST_OWNER_DATABASE_URL -ErrorAction SilentlyContinue
             Remove-Item Env:MINI_TEST_APP_DATABASE_URL -ErrorAction SilentlyContinue
+            Remove-Item Env:MINI_TEST_RELAY_DATABASE_URL -ErrorAction SilentlyContinue
             if ($created) {
                 & docker exec -e PGPASSWORD deploy-postgres-1 psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE $testDB WITH (FORCE)"
             }
