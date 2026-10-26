@@ -5,6 +5,7 @@ package repo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -145,6 +146,31 @@ func TestReservation_AC08_ConcurrentOrdersCannotOversell(t *testing.T) {
 		if got := readReserved(t, database, ctx, contest.sku); got != 1 {
 			t.Fatalf("SKU %s reserved = %d, want 1", contest.sku, got)
 		}
+	}
+}
+
+func TestStockAdjustment_EX03_RejectsAmountBelowReserved(t *testing.T) {
+	database, ctx := reservationTestDatabase(t)
+	sku := uniqueReservationSKU(t, "EX03")
+	insertReservationStock(t, database, ctx, sku, 5)
+	if err := db.New(database).InTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE mini_stock.stock_items SET reserved = 2
+			WHERE tenant_id = $1 AND sku = $2`, reservationTenant, sku)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	repository := NewItems(db.New(database))
+	if _, err := repository.AdjustStock(ctx, sku, -4); !errors.Is(err, domain.ErrBelowReserved) {
+		t.Fatalf("adjust below reserved returned %v, want ErrBelowReserved", err)
+	}
+	adjusted, err := repository.AdjustStock(ctx, sku, -3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adjusted.OnHand != 2 || adjusted.Reserved != 2 || adjusted.Available() != 0 {
+		t.Fatalf("adjusted stock = %+v, want on_hand=2 reserved=2 available=0", adjusted)
 	}
 }
 

@@ -2,6 +2,10 @@ package grpcadapter
 
 import (
 	"context"
+	"errors"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
 	stockv1 "github.com/trieu22676191/MiniProject/be/gen/go/mini/stock/v1"
 	"github.com/trieu22676191/MiniProject/be/pkg/money"
 	"github.com/trieu22676191/MiniProject/be/pkg/tenant"
@@ -55,6 +59,34 @@ func (s *Server) GetItems(ctx context.Context, request *stockv1.GetItemsRequest)
 		response.Items = append(response.Items, toProto(item))
 	}
 	return response, nil
+}
+
+func (s *Server) AdjustStock(ctx context.Context, request *stockv1.AdjustStockRequest) (*stockv1.AdjustStockResponse, error) {
+	if _, err := tenant.FromContext(ctx); err != nil {
+		return nil, status.Error(codes.Unauthenticated, "missing identity")
+	}
+	sku := strings.TrimSpace(request.GetSku())
+	if sku == "" || request.GetDeltaOnHand() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "sku and non-zero delta_on_hand are required")
+	}
+	item, err := s.items.AdjustStock(ctx, sku, request.GetDeltaOnHand())
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrForbidden):
+			return nil, status.Error(codes.PermissionDenied, "stock.adjust capability is required")
+		case errors.Is(err, domain.ErrInvalidAdjustment):
+			return nil, status.Error(codes.InvalidArgument, "adjustment must be non-zero")
+		case errors.Is(err, domain.ErrBelowReserved):
+			return nil, status.Error(codes.FailedPrecondition, "on_hand cannot be lower than reserved")
+		case errors.Is(err, domain.ErrOnHandOverflow):
+			return nil, status.Error(codes.OutOfRange, "adjusted on_hand is out of range")
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, status.Error(codes.NotFound, "stock item not found")
+		default:
+			return nil, status.Error(codes.Internal, "could not adjust stock")
+		}
+	}
+	return &stockv1.AdjustStockResponse{Item: toProto(item)}, nil
 }
 
 func toProto(item domain.Item) *stockv1.StockItem {

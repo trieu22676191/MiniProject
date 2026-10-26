@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const adjustStockOnHand = `-- name: AdjustStockOnHand :exec
+UPDATE mini_stock.stock_items
+SET on_hand = $1
+WHERE sku = $2
+`
+
+type AdjustStockOnHandParams struct {
+	OnHand int64
+	Sku    string
+}
+
+func (q *Queries) AdjustStockOnHand(ctx context.Context, arg AdjustStockOnHandParams) error {
+	_, err := q.db.Exec(ctx, adjustStockOnHand, arg.OnHand, arg.Sku)
+	return err
+}
+
 const getStockItems = `-- name: GetStockItems :many
 SELECT sku, name, unit_price::text AS unit_price, currency_code,
        on_hand, reserved
@@ -193,6 +209,26 @@ func (q *Queries) ListStockItems(ctx context.Context) ([]ListStockItemsRow, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockStockForAdjustment = `-- name: LockStockForAdjustment :one
+SELECT sku, on_hand, reserved
+FROM mini_stock.stock_items
+WHERE sku = $1
+FOR UPDATE
+`
+
+type LockStockForAdjustmentRow struct {
+	Sku      string
+	OnHand   int64
+	Reserved int64
+}
+
+func (q *Queries) LockStockForAdjustment(ctx context.Context, sku string) (LockStockForAdjustmentRow, error) {
+	row := q.db.QueryRow(ctx, lockStockForAdjustment, sku)
+	var i LockStockForAdjustmentRow
+	err := row.Scan(&i.Sku, &i.OnHand, &i.Reserved)
+	return i, err
 }
 
 const lockStockForReservation = `-- name: LockStockForReservation :many

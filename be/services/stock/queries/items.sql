@@ -11,6 +11,17 @@ FROM mini_stock.stock_items
 WHERE sku = ANY(sqlc.arg(skus)::text[])
 ORDER BY sku;
 
+-- name: LockStockForAdjustment :one
+SELECT sku, on_hand, reserved
+FROM mini_stock.stock_items
+WHERE sku = sqlc.arg(sku)
+FOR UPDATE;
+
+-- name: AdjustStockOnHand :exec
+UPDATE mini_stock.stock_items
+SET on_hand = sqlc.arg(on_hand)
+WHERE sku = sqlc.arg(sku);
+
 -- name: InsertInbox :execrows
 INSERT INTO mini_stock.inbox (tenant_id, consumer, event_id)
 VALUES ($1, $2, $3)

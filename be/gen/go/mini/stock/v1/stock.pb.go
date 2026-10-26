@@ -325,6 +325,102 @@ func (x *GetItemsResponse) GetItems() []*StockItem {
 	return nil
 }
 
+type AdjustStockRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sku           string                 `protobuf:"bytes,1,opt,name=sku,proto3" json:"sku,omitempty"`
+	DeltaOnHand   int64                  `protobuf:"varint,2,opt,name=delta_on_hand,json=deltaOnHand,proto3" json:"delta_on_hand,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdjustStockRequest) Reset() {
+	*x = AdjustStockRequest{}
+	mi := &file_mini_stock_v1_stock_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdjustStockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdjustStockRequest) ProtoMessage() {}
+
+func (x *AdjustStockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mini_stock_v1_stock_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdjustStockRequest.ProtoReflect.Descriptor instead.
+func (*AdjustStockRequest) Descriptor() ([]byte, []int) {
+	return file_mini_stock_v1_stock_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *AdjustStockRequest) GetSku() string {
+	if x != nil {
+		return x.Sku
+	}
+	return ""
+}
+
+func (x *AdjustStockRequest) GetDeltaOnHand() int64 {
+	if x != nil {
+		return x.DeltaOnHand
+	}
+	return 0
+}
+
+type AdjustStockResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          *StockItem             `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdjustStockResponse) Reset() {
+	*x = AdjustStockResponse{}
+	mi := &file_mini_stock_v1_stock_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdjustStockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdjustStockResponse) ProtoMessage() {}
+
+func (x *AdjustStockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mini_stock_v1_stock_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdjustStockResponse.ProtoReflect.Descriptor instead.
+func (*AdjustStockResponse) Descriptor() ([]byte, []int) {
+	return file_mini_stock_v1_stock_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *AdjustStockResponse) GetItem() *StockItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
 var File_mini_stock_v1_stock_proto protoreflect.FileDescriptor
 
 const file_mini_stock_v1_stock_proto_rawDesc = "" +
@@ -347,10 +443,16 @@ const file_mini_stock_v1_stock_proto_rawDesc = "" +
 	"\x0fGetItemsRequest\x12\x12\n" +
 	"\x04skus\x18\x01 \x03(\tR\x04skus\"B\n" +
 	"\x10GetItemsResponse\x12.\n" +
-	"\x05items\x18\x01 \x03(\v2\x18.mini.stock.v1.StockItemR\x05items2\xab\x01\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.mini.stock.v1.StockItemR\x05items\"J\n" +
+	"\x12AdjustStockRequest\x12\x10\n" +
+	"\x03sku\x18\x01 \x01(\tR\x03sku\x12\"\n" +
+	"\rdelta_on_hand\x18\x02 \x01(\x03R\vdeltaOnHand\"C\n" +
+	"\x13AdjustStockResponse\x12,\n" +
+	"\x04item\x18\x01 \x01(\v2\x18.mini.stock.v1.StockItemR\x04item2\x81\x02\n" +
 	"\fStockService\x12N\n" +
 	"\tListItems\x12\x1f.mini.stock.v1.ListItemsRequest\x1a .mini.stock.v1.ListItemsResponse\x12K\n" +
-	"\bGetItems\x12\x1e.mini.stock.v1.GetItemsRequest\x1a\x1f.mini.stock.v1.GetItemsResponseBFZDgithub.com/trieu22676191/MiniProject/be/gen/go/mini/stock/v1;stockv1b\x06proto3"
+	"\bGetItems\x12\x1e.mini.stock.v1.GetItemsRequest\x1a\x1f.mini.stock.v1.GetItemsResponse\x12T\n" +
+	"\vAdjustStock\x12!.mini.stock.v1.AdjustStockRequest\x1a\".mini.stock.v1.AdjustStockResponseBFZDgithub.com/trieu22676191/MiniProject/be/gen/go/mini/stock/v1;stockv1b\x06proto3"
 
 var (
 	file_mini_stock_v1_stock_proto_rawDescOnce sync.Once
@@ -364,28 +466,33 @@ func file_mini_stock_v1_stock_proto_rawDescGZIP() []byte {
 	return file_mini_stock_v1_stock_proto_rawDescData
 }
 
-var file_mini_stock_v1_stock_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_mini_stock_v1_stock_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_mini_stock_v1_stock_proto_goTypes = []any{
-	(*Money)(nil),             // 0: mini.stock.v1.Money
-	(*StockItem)(nil),         // 1: mini.stock.v1.StockItem
-	(*ListItemsRequest)(nil),  // 2: mini.stock.v1.ListItemsRequest
-	(*ListItemsResponse)(nil), // 3: mini.stock.v1.ListItemsResponse
-	(*GetItemsRequest)(nil),   // 4: mini.stock.v1.GetItemsRequest
-	(*GetItemsResponse)(nil),  // 5: mini.stock.v1.GetItemsResponse
+	(*Money)(nil),               // 0: mini.stock.v1.Money
+	(*StockItem)(nil),           // 1: mini.stock.v1.StockItem
+	(*ListItemsRequest)(nil),    // 2: mini.stock.v1.ListItemsRequest
+	(*ListItemsResponse)(nil),   // 3: mini.stock.v1.ListItemsResponse
+	(*GetItemsRequest)(nil),     // 4: mini.stock.v1.GetItemsRequest
+	(*GetItemsResponse)(nil),    // 5: mini.stock.v1.GetItemsResponse
+	(*AdjustStockRequest)(nil),  // 6: mini.stock.v1.AdjustStockRequest
+	(*AdjustStockResponse)(nil), // 7: mini.stock.v1.AdjustStockResponse
 }
 var file_mini_stock_v1_stock_proto_depIdxs = []int32{
 	0, // 0: mini.stock.v1.StockItem.unit_price:type_name -> mini.stock.v1.Money
 	1, // 1: mini.stock.v1.ListItemsResponse.items:type_name -> mini.stock.v1.StockItem
 	1, // 2: mini.stock.v1.GetItemsResponse.items:type_name -> mini.stock.v1.StockItem
-	2, // 3: mini.stock.v1.StockService.ListItems:input_type -> mini.stock.v1.ListItemsRequest
-	4, // 4: mini.stock.v1.StockService.GetItems:input_type -> mini.stock.v1.GetItemsRequest
-	3, // 5: mini.stock.v1.StockService.ListItems:output_type -> mini.stock.v1.ListItemsResponse
-	5, // 6: mini.stock.v1.StockService.GetItems:output_type -> mini.stock.v1.GetItemsResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // 3: mini.stock.v1.AdjustStockResponse.item:type_name -> mini.stock.v1.StockItem
+	2, // 4: mini.stock.v1.StockService.ListItems:input_type -> mini.stock.v1.ListItemsRequest
+	4, // 5: mini.stock.v1.StockService.GetItems:input_type -> mini.stock.v1.GetItemsRequest
+	6, // 6: mini.stock.v1.StockService.AdjustStock:input_type -> mini.stock.v1.AdjustStockRequest
+	3, // 7: mini.stock.v1.StockService.ListItems:output_type -> mini.stock.v1.ListItemsResponse
+	5, // 8: mini.stock.v1.StockService.GetItems:output_type -> mini.stock.v1.GetItemsResponse
+	7, // 9: mini.stock.v1.StockService.AdjustStock:output_type -> mini.stock.v1.AdjustStockResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_mini_stock_v1_stock_proto_init() }
@@ -399,7 +506,7 @@ func file_mini_stock_v1_stock_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mini_stock_v1_stock_proto_rawDesc), len(file_mini_stock_v1_stock_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

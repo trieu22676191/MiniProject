@@ -7,6 +7,7 @@ option go_package = "github.com/trieu22676191/MiniProject/be/gen/go/mini/stock/v
 service StockService {
   rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
   rpc GetItems(GetItemsRequest) returns (GetItemsResponse);
+  rpc AdjustStock(AdjustStockRequest) returns (AdjustStockResponse);
 }
 
 message Money {
@@ -35,4 +36,13 @@ message GetItemsRequest {
 
 message GetItemsResponse {
   repeated StockItem items = 1;
+}
+
+message AdjustStockRequest {
+  string sku = 1;
+  int64 delta_on_hand = 2;
+}
+
+message AdjustStockResponse {
+  StockItem item = 1;
 }

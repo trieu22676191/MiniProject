@@ -154,6 +154,10 @@ func (*fakeStockClient) GetItems(context.Context, *stockv1.GetItemsRequest, ...g
 	return &stockv1.GetItemsResponse{}, nil
 }
 
+func (*fakeStockClient) AdjustStock(context.Context, *stockv1.AdjustStockRequest, ...grpc.CallOption) (*stockv1.AdjustStockResponse, error) {
+	return &stockv1.AdjustStockResponse{}, nil
+}
+
 func sampleOrder() *orderv1.Order {
 	return &orderv1.Order{
 		Id: "order-id", Code: "DH-000001", Status: "PENDING_APPROVAL", CreatedBy: "an",

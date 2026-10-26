@@ -58,6 +58,34 @@ func (r *Items) GetItems(ctx context.Context, skus []string) ([]domain.Item, err
 	return result, err
 }
 
+func (r *Items) AdjustStock(ctx context.Context, sku string, delta int64) (domain.Item, error) {
+	var result domain.Item
+	err := r.db.InTx(ctx, func(tx pgx.Tx) error {
+		queries := stocksql.New(tx)
+		locked, err := queries.LockStockForAdjustment(ctx, sku)
+		if err != nil {
+			return fmt.Errorf("lock stock item for adjustment: %w", err)
+		}
+		onHand, err := domain.AdjustOnHand(locked.OnHand, locked.Reserved, delta)
+		if err != nil {
+			return err
+		}
+		if err := queries.AdjustStockOnHand(ctx, stocksql.AdjustStockOnHandParams{OnHand: onHand, Sku: sku}); err != nil {
+			return fmt.Errorf("adjust stock item: %w", err)
+		}
+		rows, err := queries.GetStockItems(ctx, []string{sku})
+		if err != nil {
+			return fmt.Errorf("read adjusted stock item: %w", err)
+		}
+		if len(rows) != 1 {
+			return pgx.ErrNoRows
+		}
+		result, err = toDomain(rows[0].Sku, rows[0].Name, rows[0].UnitPrice, rows[0].CurrencyCode, rows[0].OnHand, rows[0].Reserved)
+		return err
+	})
+	return result, err
+}
+
 func toDomain(sku, name, amount, currency string, onHand, reserved int64) (domain.Item, error) {
 	cents, err := money.ParseCents(amount)
 	if err != nil {
