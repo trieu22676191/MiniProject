@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -15,8 +17,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/trieu22676191/MiniProject/be/pkg/db"
 	"github.com/trieu22676191/MiniProject/be/pkg/events"
+	"github.com/trieu22676191/MiniProject/be/pkg/inbox"
+	"github.com/trieu22676191/MiniProject/be/pkg/outbox"
 	"github.com/trieu22676191/MiniProject/be/pkg/tenant"
 	"github.com/trieu22676191/MiniProject/be/services/stock/internal/adapter/consumer"
 	"github.com/trieu22676191/MiniProject/be/services/stock/internal/domain"
@@ -108,9 +114,63 @@ func TestReservation_EX01_CancellationReleasesStockOnce(t *testing.T) {
 	payload := cancelledEvent(t, orderID)
 	repository := NewReservations(db.New(database))
 	cancelHandler := consumer.NewOrderCancelled(usecase.NewReservations(repository))
-	if err := cancelHandler.Handle(ctx, payload); err != nil {
+	var envelope events.Envelope
+	if err := json.Unmarshal(payload, &envelope); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.New(database).InTx(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO mini_order.outbox (id, tenant_id, type, payload)
+			VALUES ($1, $2, $3, $4::jsonb)`, envelope.ID, reservationTenant, envelope.Type, payload)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = nats.DefaultURL
+	}
+	connection, err := nats.Connect(natsURL, nats.Timeout(5*time.Second), nats.Name("mini-stock-cancel-integration"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(connection.Close)
+	js, err := jetstream.New(connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := inbox.EnsureStream(ctx, js); err != nil {
+		t.Fatal(err)
+	}
+	durable := "cancel-stock-" + orderID.String()[:8]
+	runner, err := inbox.Start(ctx, js, durable, envelope.Type, cancelHandler.Handle, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(runner.Stop)
+	relayURL := os.Getenv("MINI_TEST_RELAY_DATABASE_URL")
+	if relayURL == "" {
+		t.Fatal("MINI_TEST_RELAY_DATABASE_URL is required")
+	}
+	relayPool, err := pgxpool.New(ctx, relayURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(relayPool.Close)
+	relayCtx, stopRelay := context.WithCancel(ctx)
+	relayDone := make(chan struct{})
+	t.Cleanup(func() {
+		stopRelay()
+		select {
+		case <-relayDone:
+		case <-time.After(5 * time.Second):
+			t.Error("order outbox relay did not stop")
+		}
+	})
+	go func() {
+		defer close(relayDone)
+		_ = outbox.Run(relayCtx, relayPool, js, "mini_order", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}()
+	waitForStockRelease(t, database, ctx, sku, secondSKU)
 	if err := cancelHandler.Handle(ctx, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -131,6 +191,28 @@ func TestReservation_EX01_CancellationReleasesStockOnce(t *testing.T) {
 	}
 	if reservationStatus != "RELEASED" {
 		t.Fatalf("reservation status = %s, want RELEASED", reservationStatus)
+	}
+}
+
+func waitForStockRelease(t *testing.T, database *pgxpool.Pool, ctx context.Context, skus ...string) {
+	t.Helper()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		allReleased := true
+		for _, sku := range skus {
+			if got := readReserved(t, database, ctx, sku); got != 0 {
+				allReleased = false
+			}
+		}
+		if allReleased {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("reservation was not released through JetStream before timeout: %v", ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }
 
