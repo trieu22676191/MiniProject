@@ -6,5 +6,6 @@ node_modules/
 dist/
 coverage/
 *.log
+*.tsbuildinfo
 neo-mini.pdf
 KNOWLEDGE.md

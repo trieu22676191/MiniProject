@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('up', 'migrate', 'order', 'stock', 'test', 'down')]
+    [ValidateSet('up', 'migrate', 'order', 'stock', 'bff', 'test', 'down')]
     [string]$Action
 )
 
@@ -61,6 +61,10 @@ switch ($Action) {
         $env:OUTBOX_DATABASE_URL = Database-URL 'mini_relay' $config['MINI_RELAY_PASSWORD'] 'mini' $config['POSTGRES_HOST_PORT']
         Push-Location $beRoot
         try { & go run ./services/order/cmd/server } finally { Pop-Location; Remove-Item Env:ORDER_DATABASE_URL,Env:OUTBOX_DATABASE_URL -ErrorAction SilentlyContinue }
+    }
+    'bff' {
+        Push-Location $beRoot
+        try { & go run ./services/bff/cmd/server } finally { Pop-Location }
     }
     'test' {
         $config = Read-Config

@@ -43,7 +43,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 $env:PATH = (Join-Path (go env GOPATH) 'bin') + ';' + $env:PATH
 ```
 
-Tạo `be/deploy/.env` từ `.env.example` và thay bốn mật khẩu mẫu. File `.env` được Git bỏ qua. Không đưa key, token, mật khẩu hoặc khóa ký thật vào code, tài liệu hay log; service đọc chúng từ biến môi trường. Từ `be/`, chạy:
+Tạo `be/deploy/.env` từ `.env.example` và thay bốn mật khẩu mẫu. File `.env` được Git bỏ qua. Không đưa key, token, mật khẩu hoặc khóa ký thật vào code, tài liệu hay log; service đọc chúng từ biến môi trường. Xem [Quy tắc bảo mật dữ liệu](QUY_TAC_BAO_MAT_DU_LIEU.md) trước khi thêm cấu hình hoặc commit.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 up
@@ -52,9 +52,12 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 migrate
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 stock
 # Terminal 2: chạy order (gRPC :50051, consumer và outbox relay)
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 order
+
+# Terminal 3: chạy REST BFF tại 127.0.0.1:8080
+powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 bff
 ```
 
-PostgreSQL mở trên `127.0.0.1:15432` (đổi bằng `POSTGRES_HOST_PORT` nếu cần); NATS trên `127.0.0.1:4222`. gRPC `order` nghe ở `127.0.0.1:50051`, `stock` ở `127.0.0.1:50052`. Migration chạy bằng `mini_owner`; service chạy bằng `mini_app` và đặt tenant trong từng giao dịch.
+PostgreSQL mở trên `127.0.0.1:15432` (đổi bằng `POSTGRES_HOST_PORT` nếu cần); NATS trên `127.0.0.1:4222`. gRPC `order` nghe ở `127.0.0.1:50051`, `stock` ở `127.0.0.1:50052`; BFF nghe ở `127.0.0.1:8080`. Migration chạy bằng `mini_owner`; service chạy bằng `mini_app` và đặt tenant trong từng giao dịch. Sau khi ba terminal backend đã chạy, mở terminal thứ tư tại `fe/` và chạy `corepack pnpm@11.0.0 install`, sau đó `corepack pnpm@11.0.0 dev`; web mở ở `http://localhost:3000`. Cần Node.js 24 theo đề.
 
 Lệnh kiểm phần hiện có:
 
@@ -68,4 +71,4 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. `bff` và web chưa triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; duyệt đơn phát outbox, `stock` giữ hàng nguyên tử rồi trả kết quả qua JetStream để `order` cập nhật trạng thái. Cần chạy cả hai service để hoàn tất luồng sự kiện. bốn route frontend và REST BFF đã được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
