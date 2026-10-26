@@ -16,6 +16,7 @@ import (
 	"github.com/trieu22676191/MiniProject/be/services/order/internal/adapter/repo"
 	"github.com/trieu22676191/MiniProject/be/services/order/internal/usecase"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -37,6 +38,16 @@ func main() {
 		logger.Error("ping database", "error", err)
 		os.Exit(1)
 	}
+	stockAddress := os.Getenv("STOCK_GRPC_ADDR")
+	if stockAddress == "" {
+		stockAddress = "127.0.0.1:50052"
+	}
+	stockConn, err := grpc.NewClient(stockAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Error("create stock client", "error", err)
+		os.Exit(1)
+	}
+	defer stockConn.Close()
 	address := os.Getenv("ORDER_GRPC_ADDR")
 	if address == "" {
 		address = "127.0.0.1:50051"
@@ -47,7 +58,8 @@ func main() {
 		os.Exit(1)
 	}
 	server := grpc.NewServer(grpc.UnaryInterceptor(tenant.UnaryServerInterceptor))
-	orderv1.RegisterOrderServiceServer(server, grpcadapter.NewServer(usecase.NewOrders(repo.NewOrders(db.New(pool)))))
+	orders := usecase.NewOrders(repo.NewOrders(db.New(pool)), grpcadapter.NewStockClient(stockConn))
+	orderv1.RegisterOrderServiceServer(server, grpcadapter.NewServer(orders))
 	go func() {
 		<-ctx.Done()
 		server.GracefulStop()

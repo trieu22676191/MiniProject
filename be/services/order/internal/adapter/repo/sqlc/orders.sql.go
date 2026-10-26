@@ -45,6 +45,86 @@ func (q *Queries) GetOrderByID(ctx context.Context, id pgtype.UUID) (GetOrderByI
 	return i, err
 }
 
+const insertOrder = `-- name: InsertOrder :exec
+INSERT INTO mini_order.orders
+  (id, tenant_id, code, status, created_by, total_amount, currency_code)
+VALUES ($1, $2, $3, $4, $5, $6::text::numeric, $7)
+`
+
+type InsertOrderParams struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Code         string
+	Status       string
+	CreatedBy    string
+	Column6      string
+	CurrencyCode string
+}
+
+func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) error {
+	_, err := q.db.Exec(ctx, insertOrder,
+		arg.ID,
+		arg.TenantID,
+		arg.Code,
+		arg.Status,
+		arg.CreatedBy,
+		arg.Column6,
+		arg.CurrencyCode,
+	)
+	return err
+}
+
+const insertOrderLine = `-- name: InsertOrderLine :exec
+INSERT INTO mini_order.order_lines
+  (id, tenant_id, order_id, sku, quantity, unit_price, line_amount)
+VALUES ($1, $2, $3, $4, $5, $6::text::numeric, $7::text::numeric)
+`
+
+type InsertOrderLineParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	OrderID  pgtype.UUID
+	Sku      string
+	Quantity int64
+	Column6  string
+	Column7  string
+}
+
+func (q *Queries) InsertOrderLine(ctx context.Context, arg InsertOrderLineParams) error {
+	_, err := q.db.Exec(ctx, insertOrderLine,
+		arg.ID,
+		arg.TenantID,
+		arg.OrderID,
+		arg.Sku,
+		arg.Quantity,
+		arg.Column6,
+		arg.Column7,
+	)
+	return err
+}
+
+const insertOrderOutbox = `-- name: InsertOrderOutbox :exec
+INSERT INTO mini_order.outbox (id, tenant_id, type, payload)
+VALUES ($1, $2, $3, $4::jsonb)
+`
+
+type InsertOrderOutboxParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	Type     string
+	Column4  []byte
+}
+
+func (q *Queries) InsertOrderOutbox(ctx context.Context, arg InsertOrderOutboxParams) error {
+	_, err := q.db.Exec(ctx, insertOrderOutbox,
+		arg.ID,
+		arg.TenantID,
+		arg.Type,
+		arg.Column4,
+	)
+	return err
+}
+
 const listOrderLines = `-- name: ListOrderLines :many
 SELECT sku, quantity, unit_price::text AS unit_price,
        line_amount::text AS line_amount
@@ -83,4 +163,121 @@ func (q *Queries) ListOrderLines(ctx context.Context, orderID pgtype.UUID) ([]Li
 		return nil, err
 	}
 	return items, nil
+}
+
+const listOrders = `-- name: ListOrders :many
+SELECT id, code, status, created_by, decided_by, reject_reason,
+       total_amount::text AS total_amount, currency_code
+FROM mini_order.orders
+ORDER BY created_at DESC, id DESC
+LIMIT $1
+`
+
+type ListOrdersRow struct {
+	ID           pgtype.UUID
+	Code         string
+	Status       string
+	CreatedBy    string
+	DecidedBy    pgtype.Text
+	RejectReason pgtype.Text
+	TotalAmount  string
+	CurrencyCode string
+}
+
+func (q *Queries) ListOrders(ctx context.Context, limit int32) ([]ListOrdersRow, error) {
+	rows, err := q.db.Query(ctx, listOrders, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrdersRow
+	for rows.Next() {
+		var i ListOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Status,
+			&i.CreatedBy,
+			&i.DecidedBy,
+			&i.RejectReason,
+			&i.TotalAmount,
+			&i.CurrencyCode,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockOrder = `-- name: LockOrder :one
+SELECT id, code, status, created_by, decided_by, reject_reason,
+       total_amount::text AS total_amount, currency_code
+FROM mini_order.orders
+WHERE id = $1
+FOR UPDATE
+`
+
+type LockOrderRow struct {
+	ID           pgtype.UUID
+	Code         string
+	Status       string
+	CreatedBy    string
+	DecidedBy    pgtype.Text
+	RejectReason pgtype.Text
+	TotalAmount  string
+	CurrencyCode string
+}
+
+func (q *Queries) LockOrder(ctx context.Context, id pgtype.UUID) (LockOrderRow, error) {
+	row := q.db.QueryRow(ctx, lockOrder, id)
+	var i LockOrderRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Status,
+		&i.CreatedBy,
+		&i.DecidedBy,
+		&i.RejectReason,
+		&i.TotalAmount,
+		&i.CurrencyCode,
+	)
+	return i, err
+}
+
+const nextOrderCode = `-- name: NextOrderCode :one
+SELECT nextval('mini_order.order_code_seq')::bigint AS code_number
+`
+
+func (q *Queries) NextOrderCode(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, nextOrderCode)
+	var code_number int64
+	err := row.Scan(&code_number)
+	return code_number, err
+}
+
+const updateOrderDecision = `-- name: UpdateOrderDecision :exec
+UPDATE mini_order.orders
+SET status = $2, decided_by = $3, reject_reason = $4, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateOrderDecisionParams struct {
+	ID           pgtype.UUID
+	Status       string
+	DecidedBy    pgtype.Text
+	RejectReason pgtype.Text
+}
+
+func (q *Queries) UpdateOrderDecision(ctx context.Context, arg UpdateOrderDecisionParams) error {
+	_, err := q.db.Exec(ctx, updateOrderDecision,
+		arg.ID,
+		arg.Status,
+		arg.DecidedBy,
+		arg.RejectReason,
+	)
+	return err
 }

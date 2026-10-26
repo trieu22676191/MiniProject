@@ -67,4 +67,4 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` hiện mới có `GetOrder`; các RPC còn lại, `bff` và web chưa triển khai. Hướng dẫn demo đầy đủ sẽ được bổ sung cùng các phần này. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy migration và integration test, rồi xóa database đó. `order` hiện có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`; `bff` và web chưa triển khai. Hướng dẫn demo đầy đủ sẽ được bổ sung cùng các phần này. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.

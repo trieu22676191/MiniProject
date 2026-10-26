@@ -16,6 +16,7 @@ import (
 	"github.com/trieu22676191/MiniProject/be/pkg/db"
 	"github.com/trieu22676191/MiniProject/be/pkg/tenant"
 	"github.com/trieu22676191/MiniProject/be/services/order/internal/adapter/repo"
+	"github.com/trieu22676191/MiniProject/be/services/order/internal/domain"
 	"github.com/trieu22676191/MiniProject/be/services/order/internal/usecase"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -54,7 +55,7 @@ func TestGetOrder_AC04_OtherTenantNotFound(t *testing.T) {
 	}
 	listener := bufconn.Listen(1024 * 1024)
 	server := grpc.NewServer(grpc.UnaryInterceptor(tenant.UnaryServerInterceptor))
-	orderv1.RegisterOrderServiceServer(server, NewServer(usecase.NewOrders(repo.NewOrders(db.New(appPool)))))
+	orderv1.RegisterOrderServiceServer(server, NewServer(usecase.NewOrders(repo.NewOrders(db.New(appPool)), testStock{})))
 	go func() { _ = server.Serve(listener) }()
 	defer server.Stop()
 	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
@@ -84,4 +85,10 @@ func TestGetOrder_AC04_OtherTenantNotFound(t *testing.T) {
 	if response.Order.Id != id.String() || len(response.Order.AllowedActions) != 2 {
 		t.Fatalf("unexpected order response: %+v", response.Order)
 	}
+}
+
+type testStock struct{}
+
+func (testStock) GetItems(context.Context, []string) (map[string]domain.Price, error) {
+	return nil, nil
 }
