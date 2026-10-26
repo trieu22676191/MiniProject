@@ -17,6 +17,7 @@ export function statusLabel(status: string) {
     RESERVED: "Đã giữ hàng",
     OUT_OF_STOCK: "Thiếu hàng",
     REJECTED: "Đã từ chối",
+    CANCELLED: "Đã hủy",
   };
   return labels[status] ?? status;
 }

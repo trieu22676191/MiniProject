@@ -5,9 +5,12 @@ import { getMe } from "@/lib/data/api";
 export async function AppHeader() {
   const userCookie = (await cookies()).get("dev_user")?.value;
   let name = "Chưa đăng nhập";
+  let canAdjustStock = false;
   if (userCookie) {
     try {
-      name = (await getMe()).name;
+      const user = await getMe();
+      name = user.name;
+      canAdjustStock = user.capabilities.includes("stock.adjust");
     } catch {
       name = "Phiên không hợp lệ";
     }
@@ -26,6 +29,7 @@ export async function AppHeader() {
         <nav className="hidden items-center gap-7 text-sm font-medium text-muted sm:flex">
           <Link className="transition hover:text-forest" href="/orders">Đơn hàng</Link>
           <Link className="transition hover:text-forest" href="/orders/new">Tạo đơn</Link>
+          {canAdjustStock && <Link className="transition hover:text-forest" href="/stock">Tồn kho</Link>}
           <Link className="transition hover:text-forest" href="/">Đổi người dùng</Link>
         </nav>
         <div className="flex items-center gap-3 rounded-full border border-line bg-paper py-1.5 pl-1.5 pr-3">

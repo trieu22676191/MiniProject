@@ -83,7 +83,7 @@ go test ./...
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test
 ```
 
-Lệnh `test` tạo database riêng, chạy integration test với cache bị tắt, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`, `CancelOrder`; hủy đơn đã giữ hàng phát event bù trừ qua outbox, `stock` nhả reservation một lần qua JetStream. `stock.AdjustStock` cho caller có capability `stock.adjust` điều chỉnh tồn nhưng không thấp hơn `reserved`. Cần chạy cả hai service để hoàn tất luồng sự kiện. REST BFF có route `POST /api/orders/{id}/cancel`; giao diện hủy đơn và route BFF điều chỉnh tồn chưa được triển khai. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
+Lệnh `test` tạo database riêng, chạy integration test với cache bị tắt, rồi xóa database đó. `order` có `CreateOrder`, `GetOrder`, `ListOrders`, `ApproveOrder`, `RejectOrder`, `CancelOrder`; hủy đơn đã giữ hàng phát event bù trừ qua outbox, `stock` nhả reservation một lần qua JetStream. `stock.AdjustStock` cho caller có capability `stock.adjust` điều chỉnh tồn nhưng không thấp hơn `reserved`. Cần chạy cả hai service để hoàn tất luồng sự kiện. REST BFF có route `POST /api/orders/{id}/cancel`; giao diện có nút hủy đơn theo quyền và trang tồn kho tại `/stock`; BFF hỗ trợ `POST /api/stock-items/{sku}/adjust`. Ghi chú học tập cá nhân có thể lưu trong `KNOWLEDGE.md`; file này được Git bỏ qua.
 
 ## Demo luồng đơn hàng
 
@@ -93,5 +93,6 @@ Sau khi mở web tại `http://localhost:3000`:
 2. Chọn **Chi**, mở đơn vừa tạo và duyệt. Đơn chuyển qua trạng thái chờ kho xác nhận rồi thành **Đã giữ hàng**; tồn khả dụng của `BAN-01` giảm một.
 3. Để xem trường hợp thiếu hàng, chọn **An** và tạo đơn `DEN-01` số lượng `2` (seed chỉ có một chiếc), sau đó duyệt bằng **Chi**. Kết quả dự kiến là **Thiếu hàng**; kho không giữ một phần đơn.
 4. Chọn **Dũng** để xem tenant B. Danh sách chỉ có dữ liệu tenant B; mở trực tiếp ID đơn tenant A cũng phải trả về không tìm thấy.
+5. Chọn **Kho** để mở mục **Tồn kho**, xem tồn có sẵn và điều chỉnh số lượng. Số lượng mới không thể thấp hơn phần đang được giữ.
 
 Các bước trên mô tả kết quả mong đợi của demo, chưa thay thế integration test cho AC-05–08.

@@ -37,6 +37,7 @@ func NewServer(orders orderv1.OrderServiceClient, stock stockv1.StockServiceClie
 	mux.HandleFunc("POST /api/orders/{id}/reject", server.rejectOrder)
 	mux.HandleFunc("POST /api/orders/{id}/cancel", server.cancelOrder)
 	mux.HandleFunc("GET /api/stock-items", server.listStockItems)
+	mux.HandleFunc("POST /api/stock-items/{sku}/adjust", server.adjustStock)
 	return server.requireDevUser(mux)
 }
 
@@ -167,12 +168,29 @@ func (s *Server) listStockItems(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]stockItemDTO, 0, len(response.GetItems()))
 	for _, item := range response.GetItems() {
-		items = append(items, stockItemDTO{
-			SKU: item.GetSku(), Name: item.GetName(), UnitPrice: mapMoney(item.GetUnitPrice()),
-			OnHand: item.GetOnHand(), Reserved: item.GetReserved(), Available: item.GetAvailable(),
-		})
+		items = append(items, mapStockItem(item))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) adjustStock(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		DeltaOnHand int64 `json:"deltaOnHand"`
+	}
+	if err := decodeBody(w, r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "Số lượng điều chỉnh không hợp lệ.")
+		return
+	}
+	ctx, cancel := s.rpcContext(r)
+	defer cancel()
+	response, err := s.stock.AdjustStock(ctx, &stockv1.AdjustStockRequest{
+		Sku: r.PathValue("sku"), DeltaOnHand: request.DeltaOnHand,
+	})
+	if err != nil {
+		s.writeRPCError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"item": mapStockItem(response.GetItem())})
 }
 
 func (s *Server) rpcContext(r *http.Request) (context.Context, context.CancelFunc) {
@@ -240,6 +258,16 @@ func mapOrder(order *orderv1.Order) orderDTO {
 		ID: order.GetId(), Code: order.GetCode(), Status: order.GetStatus(),
 		CreatedBy: order.GetCreatedBy(), DecidedBy: order.GetDecidedBy(), RejectReason: order.GetRejectReason(),
 		TotalAmount: mapMoney(order.GetTotalAmount()), Lines: lines, AllowedActions: actions,
+	}
+}
+
+func mapStockItem(item *stockv1.StockItem) stockItemDTO {
+	if item == nil {
+		return stockItemDTO{}
+	}
+	return stockItemDTO{
+		SKU: item.GetSku(), Name: item.GetName(), UnitPrice: mapMoney(item.GetUnitPrice()),
+		OnHand: item.GetOnHand(), Reserved: item.GetReserved(), Available: item.GetAvailable(),
 	}
 }
 

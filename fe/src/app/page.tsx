@@ -5,6 +5,7 @@ const users = [
   { id: "binh", name: "Bình", role: "Tạo và duyệt đơn", tone: "B" },
   { id: "chi", name: "Chi", role: "Duyệt đơn hàng", tone: "C" },
   { id: "dung", name: "Dũng", role: "Tenant B · Tạo và duyệt", tone: "D" },
+  { id: "kho", name: "Kho", role: "Tenant A · Điều chỉnh tồn kho", tone: "K" },
 ];
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -22,15 +23,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-[0_24px_70px_-40px_rgba(21,52,37,.28)] sm:p-8">
         <div className="mb-6 flex items-start justify-between">
           <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-forest">Tài khoản demo</p><h2 className="mt-2 text-xl font-semibold tracking-tight">Bạn là ai hôm nay?</h2></div>
-          <span className="rounded-lg bg-paper px-2.5 py-1.5 text-[11px] font-semibold text-muted">4 người dùng</span>
+          <span className="rounded-lg bg-paper px-2.5 py-1.5 text-[11px] font-semibold text-muted">5 người dùng</span>
         </div>
         {error && <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Không nhận diện được người dùng. Hãy chọn lại.</p>}
         <div className="space-y-3">
-          {users.map((user, index) => (
+          {users.map((user) => (
             <form action={selectUserAction} key={user.id}>
               <input type="hidden" name="user" value={user.id} />
               <button className="group flex w-full items-center gap-4 rounded-2xl border border-line p-4 text-left transition hover:border-[#acd4bb] hover:bg-[#f8fcf8] focus-visible:outline-2 focus-visible:outline-forest" type="submit">
-                <span className={`grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-bold ${index === 3 ? "bg-[#f8ead6] text-[#9b611e]" : "bg-mint text-forest"}`}>{user.tone}</span>
+                <span className={`grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-bold ${user.id === "dung" ? "bg-[#f8ead6] text-[#9b611e]" : "bg-mint text-forest"}`}>{user.tone}</span>
                 <span className="min-w-0 flex-1"><span className="block font-semibold">{user.name}</span><span className="mt-1 block text-xs text-muted">{user.role}</span></span>
                 <span className="text-xl text-[#a8b4ac] transition group-hover:translate-x-1 group-hover:text-forest">→</span>
               </button>

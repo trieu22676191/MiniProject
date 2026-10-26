@@ -110,6 +110,22 @@ func TestBFF_CancelOrderForwardsIdentity(t *testing.T) {
 	}
 }
 
+func TestBFF_AdjustStockForwardsWarehouseCapability(t *testing.T) {
+	stock := &fakeStockClient{}
+	handler := NewServer(&fakeOrderClient{}, stock, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	request := httptest.NewRequest(http.MethodPost, "/api/stock-items/BAN-01/adjust", strings.NewReader(`{"deltaOnHand":-2}`))
+	request.Header.Set("X-Dev-User", "kho")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", response.Code, response.Body.String())
+	}
+	if stock.adjustment.GetSku() != "BAN-01" || stock.adjustment.GetDeltaOnHand() != -2 || stock.metadata.Get("x-capabilities")[0] != "stock.adjust" {
+		t.Fatalf("adjustment or capability not forwarded: request=%+v metadata=%v", stock.adjustment, stock.metadata)
+	}
+}
+
 func newTestHandler(orders *fakeOrderClient) http.Handler {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return NewServer(orders, &fakeStockClient{}, logger)
@@ -164,7 +180,10 @@ func (f *fakeOrderClient) CancelOrder(ctx context.Context, _ *orderv1.CancelOrde
 	return &orderv1.CancelOrderResponse{Order: sampleOrder()}, nil
 }
 
-type fakeStockClient struct{}
+type fakeStockClient struct {
+	metadata   metadata.MD
+	adjustment *stockv1.AdjustStockRequest
+}
 
 func (*fakeStockClient) ListItems(context.Context, *stockv1.ListItemsRequest, ...grpc.CallOption) (*stockv1.ListItemsResponse, error) {
 	return &stockv1.ListItemsResponse{}, nil
@@ -174,8 +193,10 @@ func (*fakeStockClient) GetItems(context.Context, *stockv1.GetItemsRequest, ...g
 	return &stockv1.GetItemsResponse{}, nil
 }
 
-func (*fakeStockClient) AdjustStock(context.Context, *stockv1.AdjustStockRequest, ...grpc.CallOption) (*stockv1.AdjustStockResponse, error) {
-	return &stockv1.AdjustStockResponse{}, nil
+func (f *fakeStockClient) AdjustStock(ctx context.Context, request *stockv1.AdjustStockRequest, _ ...grpc.CallOption) (*stockv1.AdjustStockResponse, error) {
+	f.metadata, _ = metadata.FromOutgoingContext(ctx)
+	f.adjustment = request
+	return &stockv1.AdjustStockResponse{Item: &stockv1.StockItem{Sku: request.GetSku(), OnHand: 3}}, nil
 }
 
 func sampleOrder() *orderv1.Order {

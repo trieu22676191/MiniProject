@@ -41,6 +41,13 @@ var devUsers = map[string]devUser{
 			UserID:   "dung", Capabilities: map[string]bool{"order.create": true, "order.approve": true},
 		},
 	},
+	"kho": {
+		name: "Kho",
+		identity: tenant.Identity{
+			TenantID: uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+			UserID:   "kho", Capabilities: map[string]bool{"stock.adjust": true},
+		},
+	},
 }
 
 func lookupDevUser(value string) (devUser, bool) {

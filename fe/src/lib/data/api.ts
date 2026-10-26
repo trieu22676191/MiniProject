@@ -54,6 +54,10 @@ export async function listStockItems() {
   return result.items;
 }
 
+export async function adjustStockItem(sku: string, deltaOnHand: number) {
+  return submit<{ item: StockItem }>(`/api/stock-items/${encodeURIComponent(sku)}/adjust`, "POST", { deltaOnHand });
+}
+
 export async function submit<T>(path: string, method: "POST", body?: unknown) {
   return request<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 }

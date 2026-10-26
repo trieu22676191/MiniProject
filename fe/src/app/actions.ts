@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ApiError, submit } from "@/lib/data/api";
 
-const knownUsers = new Set(["an", "binh", "chi", "dung"]);
+const knownUsers = new Set(["an", "binh", "chi", "dung", "kho"]);
 
 export async function selectUserAction(formData: FormData) {
   const user = String(formData.get("user") ?? "");
@@ -59,4 +59,28 @@ export async function rejectOrderAction(formData: FormData) {
     actionError(error, `/orders/${id}`);
   }
   redirect(`/orders/${id}`);
+}
+
+export async function cancelOrderAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  try {
+    await submit(`/api/orders/${encodeURIComponent(id)}/cancel`, "POST");
+  } catch (error) {
+    actionError(error, `/orders/${id}`);
+  }
+  redirect(`/orders/${id}`);
+}
+
+export async function adjustStockAction(formData: FormData) {
+  const sku = String(formData.get("sku") ?? "");
+  const deltaOnHand = Number(formData.get("deltaOnHand"));
+  if (!sku || !Number.isSafeInteger(deltaOnHand) || deltaOnHand === 0) {
+    redirect("/stock?error=INVALID_ARGUMENT");
+  }
+  try {
+    await submit(`/api/stock-items/${encodeURIComponent(sku)}/adjust`, "POST", { deltaOnHand });
+  } catch (error) {
+    actionError(error, "/stock");
+  }
+  redirect(`/stock?updated=${encodeURIComponent(sku)}`);
 }
