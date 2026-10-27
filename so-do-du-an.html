@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sơ đồ kiến trúc & Luồng nghiệp vụ - NEO Mini</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 26px;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+    p.subtitle {
+      color: #64748b;
+      font-size: 14px;
+      margin: 0;
+    }
+    .tip-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #1e40af;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      margin-bottom: 32px;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0;
+    }
+    .btn-copy {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #334155;
+      transition: all 0.2s ease;
+    }
+    .btn-copy:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+    .btn-copy.copied {
+      background: #22c55e;
+      border-color: #22c55e;
+      color: white;
+    }
+    .card-body {
+      padding: 24px;
+      overflow-x: auto;
+      text-align: center;
+      background: white;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Kiến trúc & Các luồng nghiệp vụ - NEO Mini</h1>
+      <p class="subtitle">Tổng hợp sơ đồ thiết kế chi tiết chuẩn theo đặc tả neo-mini.pdf</p>
+    </header>
+
+    <div class="tip-box">
+      <strong>Mẹo dán vào Draw.io không bị lỗi:</strong><br>
+      1. Trong draw.io, chọn <code>+ (Insert)</code> &rarr; <code>Advanced</code> &rarr; <code>Mermaid</code>.<br>
+      2. Xóa toàn bộ nội dung mẫu đang có trong khung nhập của draw.io.<br>
+      3. Bấm nút <strong>"Sao chép mã Draw.io"</strong> ở mỗi sơ đồ dưới đây rồi dán vào (chỉ dán 1 sơ đồ mỗi lần, không kèm dấu nháy markdown <code>```</code>).
+    </div>
+
+    <!-- Sơ đồ 1 -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">1. Sơ đồ kiến trúc tổng thể & Giao tiếp (System Architecture)</h2>
+        <button class="btn-copy" onclick="copyDiagram('code-1', this)">Sao chép mã Draw.io</button>
+      </div>
+      <div class="card-body">
+        <div class="mermaid" id="diagram-1">
+flowchart TD
+    subgraph Client["Trình duyệt (Frontend)"]
+        UI["Next.js Web (Port 3000)<br/>React 19 / Tailwind CSS"]
+    end
+
+    subgraph Gateway["BFF Gateway"]
+        BFF["BFF Service (Port 8080)<br/>REST HTTP/JSON"]
+    end
+
+    subgraph Backend["Hệ thống Microservices Backend (Go)"]
+        subgraph OrderSvc["Order Service (Port 50051)"]
+            OGRPC["Order gRPC Server"]
+            OUsecase["Order Domain & Usecase"]
+            OOutbox["Order Outbox Relay"]
+            OInbox["Order Inbox Consumer"]
+        end
+
+        subgraph StockSvc["Stock Service (Port 50052)"]
+            SGRPC["Stock gRPC Server"]
+            SUsecase["Stock Domain & Usecase"]
+            SOutbox["Stock Outbox Relay"]
+            SInbox["Stock Inbox Consumer"]
+        end
+    end
+
+    subgraph Broker["Event Bus"]
+        NATS["NATS JetStream (Port 4222)<br/>Streams: ORDERS, STOCK"]
+    end
+
+    subgraph Database["Cơ sở dữ liệu (Port 15432)"]
+        subgraph PG["PostgreSQL (Multi-tenant RLS: mini_app)"]
+            DB_Order["Orders, Order Items<br/>Outbox & Inbox Tables"]
+            DB_Stock["Stock Items<br/>Outbox & Inbox Tables"]
+        end
+    end
+
+    UI -->|"HTTP/JSON"| BFF
+    BFF -->|"gRPC"| OGRPC
+    BFF -->|"gRPC"| SGRPC
+    OGRPC -->|"gRPC GetItems (lấy giá)"| SGRPC
+
+    OUsecase -->|"Giao dịch DB + Outbox"| DB_Order
+    OInbox -->|"Kiểm tra trùng + Cập nhật"| DB_Order
+    SUsecase -->|"SELECT FOR UPDATE + Outbox"| DB_Stock
+    SInbox -->|"Kiểm tra trùng + Cập nhật"| DB_Stock
+
+    OOutbox -->|"Đọc Outbox & Publish"| NATS
+    SOutbox -->|"Đọc Outbox & Publish"| NATS
+    NATS -->|"mini.ord.order.approved"| SInbox
+    NATS -->|"mini.stk.stock.reserved / out_of_stock"| OInbox
+    NATS -->|"mini.ord.order.cancelled"| SInbox
+        </div>
+      </div>
+    </div>
+
+    <!-- Sơ đồ 2 -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">2. Sơ đồ trình tự toàn bộ luồng nghiệp vụ (Sequence Diagram)</h2>
+        <button class="btn-copy" onclick="copyDiagram('code-2', this)">Sao chép mã Draw.io</button>
+      </div>
+      <div class="card-body">
+        <div class="mermaid" id="diagram-2">
+sequenceDiagram
+    autonumber
+    actor An as Nhân viên (An)
+    actor Chi as Người duyệt (Chi)
+    participant FE as Web (Next.js)
+    participant BFF as REST BFF (:8080)
+    participant Ord as Order Service (:50051)
+    participant Stk as Stock Service (:50052)
+    participant DB as PostgreSQL (RLS)
+    participant NATS as NATS JetStream (:4222)
+
+    Note over An, Stk: [Giai đoạn 1: Tạo đơn hàng (AC-01, AC-02, AC-03)]
+    An->>FE: Chọn hàng, nhập số lượng >= 1 và bấm "Tạo đơn"
+    FE->>BFF: POST /api/orders {items} (X-Tenant-ID: tenant-a)
+    BFF->>Ord: gRPC CreateOrder(tenant_id, items)
+    Ord->>Stk: gRPC GetItems(tenant_id, skus)
+    Stk-->>Ord: Trả về danh sách đơn giá
+    Ord->>DB: Giao dịch: Lưu order (SUBMITTED) & order_items
+    DB-->>Ord: Commit thành công
+    Ord-->>BFF: Trả về chi tiết đơn hàng
+    BFF-->>FE: HTTP 201 Created
+    FE-->>An: Hiển thị đơn ở trạng thái "Chờ duyệt" (SUBMITTED)
+
+    Note over Chi, NATS: [Giai đoạn 2: Duyệt đơn & Outbox (AC-04, AC-05)]
+    Chi->>FE: Bấm "Duyệt đơn"
+    FE->>BFF: POST /api/orders/{id}/approve
+    BFF->>Ord: gRPC ApproveOrder(tenant_id, id, approver: "chi")
+    Ord->>DB: Giao dịch DB nguyên tử:<br/>1. Cập nhật status = APPROVED, approved_by = "chi"<br/>2. Ghi sự kiện 'mini.ord.order.approved' vào outbox_events
+    DB-->>Ord: Commit thành công
+    Ord-->>BFF: Trả về trạng thái APPROVED
+    BFF-->>FE: HTTP 200 OK
+    FE-->>Chi: Đơn chuyển sang "Đã duyệt"
+
+    Ord->>NATS: Outbox Relay quét DB và Publish: ORDERS.approved
+
+    Note over Stk, NATS: [Giai đoạn 3: Giữ hàng nguyên tử (AC-06, AC-07, AC-08)]
+    NATS->>Stk: Consumer nhận sự kiện ORDERS.approved
+    Stk->>DB: Bắt đầu giao dịch giữ hàng:<br/>1. Inbox check deduplication (AC-07)<br/>2. Khóa dòng: SELECT FOR UPDATE ORDER BY sku (AC-08)
+
+    alt Đủ số lượng tất cả mặt hàng
+        Stk->>DB: Tăng reserved_quantity<br/>Ghi sự kiện 'mini.stk.stock.reserved'
+        DB-->>Stk: Commit giao dịch
+        Stk->>NATS: Outbox Relay Publish: STOCK.reserved
+    else Thiếu hàng dù chỉ 1 mặt hàng (AC-06)
+        Stk->>DB: Không giữ dòng nào cả (All or Nothing)<br/>Ghi sự kiện 'mini.stk.stock.out_of_stock'
+        DB-->>Stk: Commit giao dịch
+        Stk->>NATS: Outbox Relay Publish: STOCK.out_of_stock
+    end
+
+    Note over Ord, FE: [Giai đoạn 4: Cập nhật kết quả đơn hàng]
+    NATS->>Ord: Order Consumer nhận sự kiện từ kho
+    alt Nhận STOCK.reserved
+        Ord->>DB: Cập nhật order status = RESERVED
+    else Nhận STOCK.out_of_stock
+        Ord->>DB: Cập nhật order status = OUT_OF_STOCK
+    end
+        </div>
+      </div>
+    </div>
+
+    <!-- Sơ đồ 3 -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">3. Vòng đời trạng thái đơn hàng (Order State Machine)</h2>
+        <button class="btn-copy" onclick="copyDiagram('code-3', this)">Sao chép mã Draw.io</button>
+      </div>
+      <div class="card-body">
+        <div class="mermaid" id="diagram-3">
+stateDiagram-v2
+    [*] --> SUBMITTED : Tạo đơn hàng mới (CreateOrder)
+
+    SUBMITTED --> APPROVED : Người duyệt bấm Duyệt (ApproveOrder)
+    SUBMITTED --> REJECTED : Người duyệt bấm Từ chối kèm lý do (RejectOrder)
+
+    APPROVED --> RESERVED : Kho giữ hàng thành công (StockReserved event)
+    APPROVED --> OUT_OF_STOCK : Kho thiếu hàng (StockOutOfStock event - AC-06)
+
+    RESERVED --> CANCELLED : Hủy đơn đã giữ hàng -> Kho hoàn tồn (CancelOrder - EX-01)
+
+    REJECTED --> [*] : Đã đóng (Chặn duyệt lại - AC-09)
+    OUT_OF_STOCK --> [*] : Đã đóng (Không giữ hàng một phần)
+    CANCELLED --> [*] : Đã đóng (Hoàn tất bù trừ)
+        </div>
+      </div>
+    </div>
+
+    <!-- Sơ đồ 4 -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">4. Thuật toán giữ hàng & Khóa chống tranh chấp (Stock Concurrency Flow)</h2>
+        <button class="btn-copy" onclick="copyDiagram('code-4', this)">Sao chép mã Draw.io</button>
+      </div>
+      <div class="card-body">
+        <div class="mermaid" id="diagram-4">
+flowchart TD
+    Start(["Nhận event: mini.ord.order.approved"]) --> SetTenant["Đặt Tenant Session: SET LOCAL app.current_tenant"]
+    SetTenant --> InboxCheck{"Kiểm tra bảng Inbox<br/>(tenant_id, consumer, event_id)"}
+    
+    InboxCheck -- "Đã xử lý (Trùng lặp)" --> AckDuplicate["Bỏ qua & ACK sự kiện (AC-07 Idempotency)"]
+    
+    InboxCheck -- "Chưa xử lý" --> LockRows["SELECT ... FROM stock_items<br/>WHERE sku IN (...)<br/>ORDER BY sku ASC<br/>FOR UPDATE (AC-08)"]
+    
+    LockRows --> CheckStock{"Kiểm tra tồn khả dụng:<br/>Mọi dòng có quantity >= needed?"}
+    
+    CheckStock -- "Đủ toàn bộ mặt hàng" --> Reserve["Cập nhật reserved_quantity += needed<br/>Ghi event: mini.stk.stock.reserved"]
+    
+    CheckStock -- "Thiếu dù chỉ 1 mặt hàng" --> OutOfStock["Không giữ bất kỳ mặt hàng nào (AC-06)<br/>Ghi event: mini.stk.stock.out_of_stock"]
+    
+    Reserve --> CommitTx["Ghi nhận Inbox + Commit Transaction"]
+    OutOfStock --> CommitTx
+    
+    CommitTx --> Relay["Outbox Relay gửi event lên NATS JetStream"]
+    Relay --> End(["Hoàn tất"])
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw code templates for 1-click clipboard copy -->
+  <textarea id="code-1" style="display:none;">
+flowchart TD
+    subgraph Client["Trình duyệt (Frontend)"]
+        UI["Next.js Web (Port 3000)<br/>React 19 / Tailwind CSS"]
+    end
+
+    subgraph Gateway["BFF Gateway"]
+        BFF["BFF Service (Port 8080)<br/>REST HTTP/JSON"]
+    end
+
+    subgraph Backend["Hệ thống Microservices Backend (Go)"]
+        subgraph OrderSvc["Order Service (Port 50051)"]
+            OGRPC["Order gRPC Server"]
+            OUsecase["Order Domain & Usecase"]
+            OOutbox["Order Outbox Relay"]
+            OInbox["Order Inbox Consumer"]
+        end
+
+        subgraph StockSvc["Stock Service (Port 50052)"]
+            SGRPC["Stock gRPC Server"]
+            SUsecase["Stock Domain & Usecase"]
+            SOutbox["Stock Outbox Relay"]
+            SInbox["Stock Inbox Consumer"]
+        end
+    end
+
+    subgraph Broker["Event Bus"]
+        NATS["NATS JetStream (Port 4222)<br/>Streams: ORDERS, STOCK"]
+    end
+
+    subgraph Database["Cơ sở dữ liệu (Port 15432)"]
+        subgraph PG["PostgreSQL (Multi-tenant RLS: mini_app)"]
+            DB_Order["Orders, Order Items<br/>Outbox & Inbox Tables"]
+            DB_Stock["Stock Items<br/>Outbox & Inbox Tables"]
+        end
+    end
+
+    UI -->|"HTTP/JSON"| BFF
+    BFF -->|"gRPC"| OGRPC
+    BFF -->|"gRPC"| SGRPC
+    OGRPC -->|"gRPC GetItems (lấy giá)"| SGRPC
+
+    OUsecase -->|"Giao dịch DB + Outbox"| DB_Order
+    OInbox -->|"Kiểm tra trùng + Cập nhật"| DB_Order
+    SUsecase -->|"SELECT FOR UPDATE + Outbox"| DB_Stock
+    SInbox -->|"Kiểm tra trùng + Cập nhật"| DB_Stock
+
+    OOutbox -->|"Đọc Outbox & Publish"| NATS
+    SOutbox -->|"Đọc Outbox & Publish"| NATS
+    NATS -->|"mini.ord.order.approved"| SInbox
+    NATS -->|"mini.stk.stock.reserved / out_of_stock"| OInbox
+    NATS -->|"mini.ord.order.cancelled"| SInbox
+  </textarea>
+
+  <textarea id="code-2" style="display:none;">
+sequenceDiagram
+    autonumber
+    actor An as Nhân viên (An)
+    actor Chi as Người duyệt (Chi)
+    participant FE as Web (Next.js)
+    participant BFF as REST BFF (:8080)
+    participant Ord as Order Service (:50051)
+    participant Stk as Stock Service (:50052)
+    participant DB as PostgreSQL (RLS)
+    participant NATS as NATS JetStream (:4222)
+
+    Note over An, Stk: [Giai đoạn 1: Tạo đơn hàng (AC-01, AC-02, AC-03)]
+    An->>FE: Chọn hàng, nhập số lượng >= 1 và bấm "Tạo đơn"
+    FE->>BFF: POST /api/orders {items} (X-Tenant-ID: tenant-a)
+    BFF->>Ord: gRPC CreateOrder(tenant_id, items)
+    Ord->>Stk: gRPC GetItems(tenant_id, skus)
+    Stk-->>Ord: Trả về danh sách đơn giá
+    Ord->>DB: Giao dịch: Lưu order (SUBMITTED) & order_items
+    DB-->>Ord: Commit thành công
+    Ord-->>BFF: Trả về chi tiết đơn hàng
+    BFF-->>FE: HTTP 201 Created
+    FE-->>An: Hiển thị đơn ở trạng thái "Chờ duyệt" (SUBMITTED)
+
+    Note over Chi, NATS: [Giai đoạn 2: Duyệt đơn & Outbox (AC-04, AC-05)]
+    Chi->>FE: Bấm "Duyệt đơn"
+    FE->>BFF: POST /api/orders/{id}/approve
+    BFF->>Ord: gRPC ApproveOrder(tenant_id, id, approver: "chi")
+    Ord->>DB: Giao dịch DB nguyên tử:<br/>1. Cập nhật status = APPROVED, approved_by = "chi"<br/>2. Ghi sự kiện 'mini.ord.order.approved' vào outbox_events
+    DB-->>Ord: Commit thành công
+    Ord-->>BFF: Trả về trạng thái APPROVED
+    BFF-->>FE: HTTP 200 OK
+    FE-->>Chi: Đơn chuyển sang "Đã duyệt"
+
+    Ord->>NATS: Outbox Relay quét DB và Publish: ORDERS.approved
+
+    Note over Stk, NATS: [Giai đoạn 3: Giữ hàng nguyên tử (AC-06, AC-07, AC-08)]
+    NATS->>Stk: Consumer nhận sự kiện ORDERS.approved
+    Stk->>DB: Bắt đầu giao dịch giữ hàng:<br/>1. Inbox check deduplication (AC-07)<br/>2. Khóa dòng: SELECT FOR UPDATE ORDER BY sku (AC-08)
+
+    alt Đủ số lượng tất cả mặt hàng
+        Stk->>DB: Tăng reserved_quantity<br/>Ghi sự kiện 'mini.stk.stock.reserved'
+        DB-->>Stk: Commit giao dịch
+        Stk->>NATS: Outbox Relay Publish: STOCK.reserved
+    else Thiếu hàng dù chỉ 1 mặt hàng (AC-06)
+        Stk->>DB: Không giữ dòng nào cả (All or Nothing)<br/>Ghi sự kiện 'mini.stk.stock.out_of_stock'
+        DB-->>Stk: Commit giao dịch
+        Stk->>NATS: Outbox Relay Publish: STOCK.out_of_stock
+    end
+
+    Note over Ord, FE: [Giai đoạn 4: Cập nhật kết quả đơn hàng]
+    NATS->>Ord: Order Consumer nhận sự kiện từ kho
+    alt Nhận STOCK.reserved
+        Ord->>DB: Cập nhật order status = RESERVED
+    else Nhận STOCK.out_of_stock
+        Ord->>DB: Cập nhật order status = OUT_OF_STOCK
+    end
+  </textarea>
+
+  <textarea id="code-3" style="display:none;">
+stateDiagram-v2
+    [*] --> SUBMITTED : Tạo đơn hàng mới (CreateOrder)
+
+    SUBMITTED --> APPROVED : Người duyệt bấm Duyệt (ApproveOrder)
+    SUBMITTED --> REJECTED : Người duyệt bấm Từ chối kèm lý do (RejectOrder)
+
+    APPROVED --> RESERVED : Kho giữ hàng thành công (StockReserved event)
+    APPROVED --> OUT_OF_STOCK : Kho thiếu hàng (StockOutOfStock event - AC-06)
+
+    RESERVED --> CANCELLED : Hủy đơn đã giữ hàng -> Kho hoàn tồn (CancelOrder - EX-01)
+
+    REJECTED --> [*] : Đã đóng (Chặn duyệt lại - AC-09)
+    OUT_OF_STOCK --> [*] : Đã đóng (Không giữ hàng một phần)
+    CANCELLED --> [*] : Đã đóng (Hoàn tất bù trừ)
+  </textarea>
+
+  <textarea id="code-4" style="display:none;">
+flowchart TD
+    Start(["Nhận event: mini.ord.order.approved"]) --> SetTenant["Đặt Tenant Session: SET LOCAL app.current_tenant"]
+    SetTenant --> InboxCheck{"Kiểm tra bảng Inbox<br/>(tenant_id, consumer, event_id)"}
+    
+    InboxCheck -- "Đã xử lý (Trùng lặp)" --> AckDuplicate["Bỏ qua & ACK sự kiện (AC-07 Idempotency)"]
+    
+    InboxCheck -- "Chưa xử lý" --> LockRows["SELECT ... FROM stock_items<br/>WHERE sku IN (...)<br/>ORDER BY sku ASC<br/>FOR UPDATE (AC-08)"]
+    
+    LockRows --> CheckStock{"Kiểm tra tồn khả dụng:<br/>Mọi dòng có quantity >= needed?"}
+    
+    CheckStock -- "Đủ toàn bộ mặt hàng" --> Reserve["Cập nhật reserved_quantity += needed<br/>Ghi event: mini.stk.stock.reserved"]
+    
+    CheckStock -- "Thiếu dù chỉ 1 mặt hàng" --> OutOfStock["Không giữ bất kỳ mặt hàng nào (AC-06)<br/>Ghi event: mini.stk.stock.out_of_stock"]
+    
+    Reserve --> CommitTx["Ghi nhận Inbox + Commit Transaction"]
+    OutOfStock --> CommitTx
+    
+    CommitTx --> Relay["Outbox Relay gửi event lên NATS JetStream"]
+    Relay --> End(["Hoàn tất"])
+  </textarea>
+
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+    function copyDiagram(id, btn) {
+      const text = document.getElementById(id).value.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = "✓ Đã chép!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.remove("copied");
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
+
